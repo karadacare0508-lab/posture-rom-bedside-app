@@ -40,7 +40,7 @@
   .shell{max-width:1120px;margin:0 auto;padding:12px;display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:14px}
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
   .setup{padding:12px}
-  .tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+  .tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
   .tab,.choice,.btn,.small-btn{border:1px solid var(--line);background:#fff;color:#344054;border-radius:8px;font-weight:900;cursor:pointer}
   .tab{min-height:54px;padding:11px 10px}
   .tab.active,.choice.active{border-color:var(--accent);background:var(--soft);color:#075e56;box-shadow:inset 0 0 0 1px var(--accent)}
@@ -55,7 +55,7 @@
   .choice.active small{color:#0f766e}
   .stage-wrap{position:relative}
   .stage{position:relative;background:#111827;border:1px solid #0b1220;border-radius:8px;overflow:hidden;min-height:320px;display:flex;align-items:center;justify-content:center;touch-action:none}
-  #angleCanvas,#gaitCanvas,#gaitVideo{position:absolute;inset:0;width:100%;height:100%}
+  #angleCanvas,#postureCanvas,#gaitCanvas,#gaitVideo{position:absolute;inset:0;width:100%;height:100%}
   #gaitVideo{object-fit:contain;background:#111827}
   .hint{position:relative;z-index:1;color:#d1d5db;text-align:center;padding:24px;font-size:15px;line-height:1.8}
   .tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
@@ -116,7 +116,7 @@
   }
   @media(max-width:460px){
     h1{font-size:18px}
-    .tabs{grid-template-columns:1fr}
+    .tabs{grid-template-columns:1fr 1fr}
     .top-inner{align-items:flex-start}
     .grid.four{grid-template-columns:1fr 1fr}
     .grid.three{grid-template-columns:1fr}
@@ -143,6 +143,7 @@
       <div class="tabs">
         <button class="tab active" data-mode="angle" type="button">関節角度<br><small>3点タップ</small></button>
         <button class="tab" data-mode="compare" type="button">ROM比較<br><small>2枚で差分</small></button>
+        <button class="tab" data-mode="posture" type="button">姿勢分析<br><small>2点タップ</small></button>
         <button class="tab" data-mode="gait" type="button">歩行分析<br><small>動画イベント</small></button>
       </div>
 
@@ -173,6 +174,21 @@
         </div>
       </div>
 
+      <div id="postureSetup" class="hidden">
+        <p class="field-title">姿勢の見方</p>
+        <div class="grid three" id="postureSeg">
+          <button class="choice active" data-posture="horizontal" type="button">水平傾き<small>肩・骨盤</small></button>
+          <button class="choice" data-posture="vertical" type="button">垂直傾き<small>頭部・体幹</small></button>
+          <button class="choice" data-posture="offset" type="button">水平ズレ<small>耳-肩など</small></button>
+        </div>
+
+        <p class="field-title">撮影方向</p>
+        <div class="grid two" id="postureViewSeg">
+          <button class="choice active" data-posture-view="正面" type="button">正面</button>
+          <button class="choice" data-posture-view="側面" type="button">側面</button>
+        </div>
+      </div>
+
       <div id="gaitSetup" class="hidden">
         <p class="field-title">歩行イベント</p>
         <div class="event-grid">
@@ -199,6 +215,7 @@
       <div class="stage-wrap">
         <div class="stage" id="stage">
           <canvas id="angleCanvas"></canvas>
+          <canvas id="postureCanvas" class="hidden"></canvas>
           <video id="gaitVideo" class="hidden" playsinline muted></video>
           <canvas id="gaitCanvas" class="hidden"></canvas>
           <div class="hint" id="stageHint">写真を選んで、近位端 → 関節中心 → 遠位端の順にタップしてください。</div>
@@ -214,6 +231,18 @@
         <div class="tools">
           <button class="btn" id="recordAngleBtn" type="button" disabled>記録</button>
           <button class="btn orange" id="saveAngleBtn" type="button" disabled>画像保存</button>
+        </div>
+      </div>
+
+      <div id="postureTools" class="hidden">
+        <div class="tools three">
+          <button class="btn primary" id="postureImageBtn" type="button">写真を選ぶ</button>
+          <button class="btn" id="undoPostureBtn" type="button">1点戻す</button>
+          <button class="btn" id="resetPostureBtn" type="button">リセット</button>
+        </div>
+        <div class="tools">
+          <button class="btn" id="recordPostureBtn" type="button" disabled>記録</button>
+          <button class="btn orange" id="savePostureBtn" type="button" disabled>画像保存</button>
         </div>
       </div>
 
@@ -235,6 +264,7 @@
       </div>
 
       <input id="imageInput" type="file" accept="image/*">
+      <input id="postureInput" type="file" accept="image/*">
       <input id="videoInput" type="file" accept="video/*">
       <div class="status" id="status">準備完了</div>
     </section>
@@ -290,6 +320,12 @@
         <table class="metric-table" id="compareTable"></table>
       </div>
 
+      <div id="postureResult" class="hidden">
+        <div class="result-name" id="postureName">水平傾き / 正面</div>
+        <div class="big-number" id="postureValue">--<small>°</small></div>
+        <table class="metric-table" id="postureTable"></table>
+      </div>
+
       <div id="gaitResult" class="hidden">
         <div class="result-name">歩行分析</div>
         <table class="metric-table" id="gaitTable"></table>
@@ -308,7 +344,7 @@
     </section>
 
     <section class="note" style="margin-top:12px">
-      関節角度は3点の位置で決まります。写真はできるだけ関節面とカメラを平行にし、中心点を正確に置いてください。歩行分析は動画の現在時刻にイベントを打つ方式なので、スロー再生や一時停止を使うと安定します。
+      関節角度は3点、姿勢分析は2点の位置で決まります。写真はできるだけ対象面とカメラを平行にしてください。歩行分析は動画の現在時刻にイベントを打つ方式なので、スロー再生や一時停止を使うと安定します。
     </section>
   </aside>
 </div>
@@ -319,6 +355,8 @@ const $$ = s => Array.from(document.querySelectorAll(s));
 
 const angleCanvas = $("#angleCanvas");
 const angleCtx = angleCanvas.getContext("2d");
+const postureCanvas = $("#postureCanvas");
+const postureCtx = postureCanvas.getContext("2d");
 const gaitCanvas = $("#gaitCanvas");
 const gaitCtx = gaitCanvas.getContext("2d");
 const stage = $("#stage");
@@ -351,6 +389,12 @@ const compareStates = {
   base:{img:null, points:[], canvas:$("#compareBaseCanvas"), ctx:$("#compareBaseCanvas").getContext("2d"), active:null, angle:null},
   move:{img:null, points:[], canvas:$("#compareMoveCanvas"), ctx:$("#compareMoveCanvas").getContext("2d"), active:null, angle:null}
 };
+let postureTool = "horizontal";
+let postureView = "正面";
+let postureImage = null;
+let posturePoints = [];
+let postureActive = null;
+let lastPosture = null;
 
 function setStatus(text){ statusEl.textContent = text; }
 function escapeHtml(v){ return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
@@ -359,21 +403,27 @@ function fmt(v,d=2){ return Number.isFinite(v) ? v.toFixed(d) : "--"; }
 function setMode(next){
   mode = next;
   $$(".tab").forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
-  $("#angleSetup").classList.toggle("hidden", mode === "gait");
+  $("#angleSetup").classList.toggle("hidden", mode === "gait" || mode === "posture");
+  $("#postureSetup").classList.toggle("hidden", mode !== "posture");
   $("#gaitSetup").classList.toggle("hidden", mode !== "gait");
   $("#singleStageSection").classList.toggle("hidden", mode === "compare");
   $("#comparePanel").classList.toggle("hidden", mode !== "compare");
   $("#angleTools").classList.toggle("hidden", mode !== "angle");
+  $("#postureTools").classList.toggle("hidden", mode !== "posture");
   $("#gaitTools").classList.toggle("hidden", mode !== "gait");
   $("#angleResult").classList.toggle("hidden", mode !== "angle");
   $("#compareResult").classList.toggle("hidden", mode !== "compare");
+  $("#postureResult").classList.toggle("hidden", mode !== "posture");
   $("#gaitResult").classList.toggle("hidden", mode !== "gait");
   angleCanvas.classList.toggle("hidden", mode !== "angle");
+  postureCanvas.classList.toggle("hidden", mode !== "posture");
   gaitVideo.classList.toggle("hidden", mode !== "gait");
   gaitCanvas.classList.toggle("hidden", mode !== "gait");
   stageHint.textContent = "写真を選んで、近位端 → 関節中心 → 遠位端の順にタップしてください。";
+  if(mode === "posture") stageHint.textContent = "写真を選んで、姿勢を見たい2点をタップしてください。";
   if(mode === "gait") stageHint.textContent = "動画を選び、接地・離地の瞬間で一時停止してイベントボタンを押します。";
   drawAngle();
+  drawPosture();
   drawCompareAll();
   drawGaitOverlay();
 }
@@ -758,6 +808,226 @@ function loadImage(file){
   img.src = url;
 }
 
+function postureMetric(){
+  if(posturePoints.length < 2) return null;
+  const a = posturePoints[0];
+  const b = posturePoints[1];
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx,dy);
+  if(!len) return null;
+  const horizontalAngle = Math.atan2(Math.abs(dy),Math.abs(dx || 0.0001))*180/Math.PI;
+  const verticalAngle = Math.atan2(Math.abs(dx),Math.abs(dy || 0.0001))*180/Math.PI;
+  const offsetPct = Math.abs(dx) / len * 100;
+  const verticalPct = Math.abs(dy) / len * 100;
+  if(postureTool === "horizontal"){
+    return {
+      value:horizontalAngle,
+      unit:"°",
+      label:"水平からの傾き",
+      detail:dy === 0 ? "ほぼ水平" : (dy > 0 ? "2点目が低い" : "1点目が低い"),
+      rows:[["水平傾き",`${fmt(horizontalAngle,1)}°`],["上下差",`${fmt(Math.abs(dy),0)} px`],["左右距離",`${fmt(Math.abs(dx),0)} px`]]
+    };
+  }
+  if(postureTool === "vertical"){
+    return {
+      value:verticalAngle,
+      unit:"°",
+      label:"垂直からの傾き",
+      detail:dx === 0 ? "ほぼ垂直" : (dx > 0 ? "2点目が右" : "2点目が左"),
+      rows:[["垂直傾き",`${fmt(verticalAngle,1)}°`],["左右ズレ",`${fmt(Math.abs(dx),0)} px`],["上下距離",`${fmt(Math.abs(dy),0)} px`]]
+    };
+  }
+  return {
+    value:offsetPct,
+    unit:"%",
+    label:"水平ズレ率",
+    detail:dx === 0 ? "水平ズレなし" : (dx > 0 ? "2点目が右" : "2点目が左"),
+    rows:[["水平ズレ",`${fmt(Math.abs(dx),0)} px`],["水平ズレ率",`${fmt(offsetPct,1)}%`],["垂直成分",`${fmt(verticalPct,1)}%`],["垂直傾き",`${fmt(verticalAngle,1)}°`]]
+  };
+}
+
+function updatePostureResult(){
+  const metric = postureMetric();
+  lastPosture = metric;
+  const name = postureTool === "horizontal" ? "水平傾き" : postureTool === "vertical" ? "垂直傾き" : "水平ズレ";
+  $("#postureName").textContent = `${name} / ${postureView}`;
+  $("#postureValue").innerHTML = `${metric == null ? "--" : fmt(metric.value,1)}<small>${metric?.unit || "°"}</small>`;
+  $("#postureTable").innerHTML = metric == null
+    ? `<tr><th>手順</th><td>写真を選び、2点をタップしてください。</td></tr>`
+    : [
+      ["評価",metric.label],
+      ["向き",metric.detail],
+      ...metric.rows
+    ].map(row => `<tr><th>${row[0]}</th><td>${row[1]}</td></tr>`).join("");
+  $("#recordPostureBtn").disabled = metric == null;
+  $("#savePostureBtn").disabled = metric == null;
+}
+
+function drawPosture(){
+  postureCtx.clearRect(0,0,postureCanvas.width,postureCanvas.height);
+  if(postureImage){
+    postureCtx.drawImage(postureImage,0,0,postureCanvas.width,postureCanvas.height);
+    if(mode === "posture") stageHint.classList.add("hidden");
+  }else if(mode === "posture"){
+    stageHint.classList.remove("hidden");
+  }
+  if(posturePoints.length){
+    postureCtx.save();
+    postureCtx.lineWidth = 4;
+    postureCtx.lineCap = "round";
+    if(posturePoints.length >= 2){
+      postureCtx.strokeStyle = "#0f766e";
+      postureCtx.beginPath();
+      postureCtx.moveTo(posturePoints[0].x,posturePoints[0].y);
+      postureCtx.lineTo(posturePoints[1].x,posturePoints[1].y);
+      postureCtx.stroke();
+      drawReferenceLine();
+    }
+    posturePoints.forEach((p,i) => {
+      postureCtx.beginPath();
+      postureCtx.fillStyle = i === 0 ? "#2563eb" : "#d76628";
+      postureCtx.strokeStyle = "#fff";
+      postureCtx.lineWidth = 3;
+      postureCtx.arc(p.x,p.y,10,0,Math.PI*2);
+      postureCtx.fill();
+      postureCtx.stroke();
+      postureCtx.fillStyle = "#fff";
+      postureCtx.font = "900 12px sans-serif";
+      postureCtx.textAlign = "center";
+      postureCtx.textBaseline = "middle";
+      postureCtx.fillText(String(i+1),p.x,p.y);
+    });
+    const metric = postureMetric();
+    if(metric){
+      postureCtx.fillStyle = "rgba(17,24,39,.78)";
+      postureCtx.fillRect(10,10,230,50);
+      postureCtx.fillStyle = "#fff";
+      postureCtx.font = "900 22px sans-serif";
+      postureCtx.fillText(`${fmt(metric.value,1)}${metric.unit}`,22,43);
+      postureCtx.font = "700 12px sans-serif";
+      postureCtx.fillText(metric.label,100,43);
+    }
+    postureCtx.restore();
+  }
+  updatePostureResult();
+}
+
+function drawReferenceLine(){
+  const a = posturePoints[0];
+  postureCtx.save();
+  postureCtx.setLineDash([7,7]);
+  postureCtx.strokeStyle = "rgba(245,158,11,.95)";
+  postureCtx.lineWidth = 3;
+  postureCtx.beginPath();
+  if(postureTool === "horizontal"){
+    postureCtx.moveTo(0,a.y);
+    postureCtx.lineTo(postureCanvas.width,a.y);
+  }else{
+    postureCtx.moveTo(a.x,0);
+    postureCtx.lineTo(a.x,postureCanvas.height);
+  }
+  postureCtx.stroke();
+  postureCtx.restore();
+}
+
+function nearestPosturePoint(p){
+  let best = null;
+  posturePoints.forEach((pt,i) => {
+    const d = distance(p,pt);
+    if(d < 28 && (!best || d < best.d)) best = {i,d};
+  });
+  return best;
+}
+
+postureCanvas.addEventListener("pointerdown", event => {
+  if(mode !== "posture" || !postureImage) return;
+  postureCanvas.setPointerCapture(event.pointerId);
+  const p = canvasPoint(event, postureCanvas);
+  const near = nearestPosturePoint(p);
+  if(near){
+    postureActive = near.i;
+  }else if(posturePoints.length < 2){
+    posturePoints.push(p);
+    postureActive = posturePoints.length - 1;
+  }else{
+    postureActive = null;
+  }
+  drawPosture();
+});
+
+postureCanvas.addEventListener("pointermove", event => {
+  if(postureActive == null) return;
+  posturePoints[postureActive] = canvasPoint(event, postureCanvas);
+  drawPosture();
+});
+
+postureCanvas.addEventListener("pointerup", () => { postureActive = null; });
+postureCanvas.addEventListener("pointercancel", () => { postureActive = null; });
+
+function loadPostureImage(file){
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    postureImage = img;
+    posturePoints = [];
+    resizeCanvasToImage(postureCanvas,img);
+    drawPosture();
+    setStatus("姿勢を見たい2点をタップしてください。点はドラッグで微調整できます。");
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    setStatus("画像を読み込めませんでした。");
+  };
+  img.src = url;
+}
+
+function postureRecord(){
+  const metric = postureMetric();
+  if(!metric) return;
+  const label = postureTool === "horizontal" ? "水平傾き" : postureTool === "vertical" ? "垂直傾き" : "水平ズレ";
+  records.unshift({
+    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    type:"posture",
+    t:new Date().toLocaleString("ja-JP"),
+    title:`姿勢 ${label}・${postureView}`,
+    value:Math.round(metric.value*10)/10,
+    unit:metric.unit,
+    calc:label,
+    memo:memoEl.value.trim()
+  });
+  saveRecords();
+  renderRecords();
+  setStatus("姿勢分析を記録しました。");
+}
+
+function savePostureImage(){
+  const metric = postureMetric();
+  if(!postureImage || !metric) return;
+  const out = document.createElement("canvas");
+  out.width = postureCanvas.width;
+  out.height = postureCanvas.height + 126;
+  const ctx = out.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0,0,out.width,out.height);
+  ctx.drawImage(postureCanvas,0,0);
+  const y = postureCanvas.height;
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillRect(0,y,out.width,126);
+  ctx.fillStyle = "#0f766e";
+  ctx.fillRect(0,y,6,126);
+  ctx.fillStyle = "#17202a";
+  ctx.font = "900 22px sans-serif";
+  ctx.fillText(`姿勢 ${metric.label}: ${fmt(metric.value,1)}${metric.unit}`,18,y+34);
+  ctx.fillStyle = "#475467";
+  ctx.font = "700 14px sans-serif";
+  ctx.fillText(`${postureView} / ${metric.detail} / ${new Date().toLocaleString("ja-JP")}`,18,y+60);
+  const memo = memoEl.value.trim();
+  if(memo) wrapText(ctx,`メモ: ${memo}`,18,y+88,out.width-36,18);
+  downloadCanvas(out,`posture_${Date.now()}.png`);
+}
+
 function angleRecord(){
   if(lastAngle == null) return;
   const rec = {
@@ -1047,8 +1317,8 @@ function renderRecords(){
     return;
   }
   $("#records").innerHTML = records.map(r => `<div class="rec">
-    <div class="rec-title">${escapeHtml(r.title)} ${r.value}°</div>
-    <div class="rec-meta">${escapeHtml(r.t)} / ${r.calc === "rom" ? "ROM" : "内角"}${r.memo ? " / " + escapeHtml(r.memo) : ""}</div>
+    <div class="rec-title">${escapeHtml(r.title)} ${r.value}${escapeHtml(r.unit || "°")}</div>
+    <div class="rec-meta">${escapeHtml(r.t)} / ${escapeHtml(r.calc === "rom" ? "ROM" : r.calc === "inner" ? "内角" : r.calc || "")}${r.memo ? " / " + escapeHtml(r.memo) : ""}</div>
     <div class="rec-actions"><button class="small-btn danger" data-del="${r.id}" type="button">削除</button></div>
   </div>`).join("");
   $$("[data-del]").forEach(btn => {
@@ -1087,6 +1357,20 @@ $("#calcSeg").onclick = e => {
   drawAngle();
   drawCompareAll();
 };
+$("#postureSeg").onclick = e => {
+  const b = e.target.closest(".choice");
+  if(!b) return;
+  postureTool = b.dataset.posture;
+  setChoice("#postureSeg","posture",postureTool);
+  drawPosture();
+};
+$("#postureViewSeg").onclick = e => {
+  const b = e.target.closest(".choice");
+  if(!b) return;
+  postureView = b.dataset.postureView;
+  setChoice("#postureViewSeg","postureView",postureView);
+  updatePostureResult();
+};
 
 $("#imageBtn").onclick = () => $("#imageInput").click();
 $("#imageInput").onchange = e => { if(e.target.files[0]) loadImage(e.target.files[0]); e.target.value = ""; };
@@ -1094,6 +1378,13 @@ $("#undoPointBtn").onclick = () => { points.pop(); drawAngle(); };
 $("#resetAngleBtn").onclick = () => { points = []; drawAngle(); };
 $("#recordAngleBtn").onclick = angleRecord;
 $("#saveAngleBtn").onclick = saveAngleImage;
+
+$("#postureImageBtn").onclick = () => $("#postureInput").click();
+$("#postureInput").onchange = e => { if(e.target.files[0]) loadPostureImage(e.target.files[0]); e.target.value = ""; };
+$("#undoPostureBtn").onclick = () => { posturePoints.pop(); drawPosture(); };
+$("#resetPostureBtn").onclick = () => { posturePoints = []; drawPosture(); };
+$("#recordPostureBtn").onclick = postureRecord;
+$("#savePostureBtn").onclick = savePostureImage;
 
 $("#compareBaseBtn").onclick = () => $("#compareBaseInput").click();
 $("#compareMoveBtn").onclick = () => $("#compareMoveInput").click();
@@ -1154,6 +1445,7 @@ $("#exportGaitBtn").onclick = exportGaitCsv;
 
 window.addEventListener("resize",() => {
   if(angleImage){ resizeCanvasToImage(angleCanvas,angleImage); drawAngle(); }
+  if(postureImage){ resizeCanvasToImage(postureCanvas,postureImage); drawPosture(); }
   Object.values(compareStates).forEach(state => {
     if(state.img){ resizeCompareCanvas(state); drawCompare(state === compareStates.base ? "base" : "move"); }
   });
@@ -1163,6 +1455,7 @@ window.addEventListener("resize",() => {
 renderRecords();
 updateAngleResult();
 updateCompareResult();
+updatePostureResult();
 updateGaitResults();
 </script>
 </body>
