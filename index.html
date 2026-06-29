@@ -2,1093 +2,883 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="ベッドサイドROM">
-<link rel="manifest" href='data:application/manifest+json,{"name":"ベッドサイド姿勢・ROM計測","short_name":"ROM計測","display":"standalone","background_color":"%23f6f7fb","theme_color":"%230f766e","icons":[]}'>
-<title>ベッドサイド 姿勢・ROM計測</title>
+<meta name="apple-mobile-web-app-title" content="ROM歩行">
+<title>関節角度・歩行分析</title>
 <style>
   :root{
-    --bg:#f6f7fb;
-    --surface:#ffffff;
-    --surface-2:#eef4f2;
-    --ink:#17202a;
+    --bg:#f5f7fb;
+    --surface:#fff;
+    --ink:#15202b;
     --muted:#667085;
-    --line:#d7dde5;
+    --line:#d8dee8;
+    --soft:#edf6f4;
     --accent:#0f766e;
-    --accent-2:#dc6b28;
+    --accent-2:#d76628;
     --good:#087f5b;
     --warn:#b45309;
     --bad:#c24135;
     --shadow:0 10px 28px rgba(17,24,39,.10);
-    --radius:8px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  html,body{margin:0;background:var(--bg);color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif;
     font-size:16px;line-height:1.55}
   body{min-height:100vh;padding-bottom:28px}
-  button,input,textarea{font:inherit}
+  button,input,textarea,select{font:inherit}
   button{touch-action:manipulation}
-  .topbar{
-    position:sticky;top:0;z-index:40;
-    background:rgba(246,247,251,.96);backdrop-filter:blur(14px);
-    border-bottom:1px solid var(--line);
-    padding:max(12px,env(safe-area-inset-top)) 16px 12px;
-  }
-  .topbar-inner{max-width:1080px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px}
-  h1{margin:0;font-size:20px;line-height:1.2;font-weight:900;letter-spacing:0}
-  .subtitle{margin:3px 0 0;color:var(--muted);font-size:12px}
-  .pill-status{min-width:88px;text-align:center;border:1px solid #b7e4dc;background:#e7f8f4;color:#075e56;
-    border-radius:999px;padding:7px 10px;font-size:12px;font-weight:800}
-  .shell{max-width:1080px;margin:0 auto;padding:14px 14px 0;display:grid;grid-template-columns:minmax(0,1.02fr) minmax(320px,.78fr);gap:16px}
-  .main,.side{min-width:0}
-  .section{margin-bottom:14px}
-  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
-  .setup{padding:14px}
-  .section-title{font-size:13px;font-weight:900;color:#344054;margin:0 0 8px;display:flex;align-items:center;gap:8px}
-  .section-title::before{content:"";width:8px;height:8px;background:var(--accent-2);border-radius:50%}
-  .banner{background:#fff7ed;border:1px solid #fed7aa;color:#7c2d12;border-radius:var(--radius);padding:10px 12px;font-size:13px;margin-bottom:12px}
-  .banner b{color:#431407}
-  .segmented{display:grid;gap:8px}
-  .mode-grid{grid-template-columns:1fr 1fr}
-  .position-grid{grid-template-columns:repeat(3,1fr)}
-  .category-grid{grid-template-columns:repeat(4,1fr)}
-  .side-grid{grid-template-columns:repeat(3,1fr)}
-  .view-grid{grid-template-columns:1fr 1fr}
-  .choice{
-    min-height:50px;border:1px solid var(--line);background:#fff;color:#344054;border-radius:var(--radius);
-    padding:10px 9px;text-align:center;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;
-  }
-  .choice span{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-top:1px}
-  .choice.active{border-color:var(--accent);background:#e7f8f4;color:#075e56;box-shadow:inset 0 0 0 1px var(--accent)}
-  .choice.active span{color:#0f766e}
-  .guidance{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px}
-  .guide-row{display:grid;grid-template-columns:84px 1fr;gap:10px;font-size:13px;color:#344054}
-  .guide-row + .guide-row{margin-top:7px;padding-top:7px;border-top:1px solid #edf1f5}
-  .guide-row b{color:#111827}
-  .guide-label{font-weight:900;color:#0f766e}
-  .stage{
-    position:relative;overflow:hidden;background:#111827;border-radius:var(--radius);border:1px solid #0b1220;
-    aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;min-height:260px;
-  }
-  #video,#photo,#overlay{position:absolute;inset:0;width:100%;height:100%}
-  #video,#photo{object-fit:contain;background:#111827}
-  #overlay{pointer-events:none}
-  .frameGuide{position:absolute;inset:10% 12%;border:2px dashed rgba(255,255,255,.42);border-radius:8px;pointer-events:none}
-  .frameGuide.supine{inset:13% 7%;border-radius:999px}
-  .frameGuide.sideLying{inset:9% 11%;border-radius:30px}
-  .stage-hint{z-index:1;text-align:center;color:#d1d5db;padding:22px;font-size:15px;line-height:1.8}
-  .quality{position:absolute;left:10px;right:10px;bottom:10px;border-radius:var(--radius);padding:8px 10px;text-align:center;font-size:13px;font-weight:900;
-    background:rgba(17,24,39,.78);color:#f9fafb}
-  .quality.ok{background:rgba(8,127,91,.88)}
-  .quality.warn{background:rgba(180,83,9,.90)}
-  .actions{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:10px}
-  .secondary-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:10px;margin-top:10px}
-  .btn{
-    min-height:54px;border-radius:var(--radius);border:1px solid transparent;padding:12px 14px;font-weight:900;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;
-  }
-  .btn-primary{background:var(--accent);color:#fff}
-  .btn-accent{background:var(--accent-2);color:#fff}
-  .btn-ghost{background:#fff;color:#344054;border-color:var(--line)}
-  .btn-icon{width:58px;background:#fff;color:#344054;border-color:var(--line);font-size:22px;padding:0}
-  .btn:disabled{opacity:.45;cursor:not-allowed}
-  .status{min-height:22px;margin:9px 1px 0;color:var(--muted);font-size:13px;text-align:center}
-  .memo{display:block;width:100%;min-height:70px;resize:vertical;border:1px solid var(--line);border-radius:var(--radius);padding:11px 12px;background:#fff;color:var(--ink)}
-  .memo:focus,.choice:focus,.btn:focus{outline:3px solid rgba(15,118,110,.22);outline-offset:2px}
-  .results{padding:14px}
-  .empty{color:var(--muted);font-size:14px;text-align:center;padding:28px 10px;line-height:1.8}
-  .group-title{font-size:13px;font-weight:900;color:#0f766e;margin:2px 0 8px}
-  .metric-card{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;border:1px solid var(--line);background:#fff;border-radius:var(--radius);padding:12px 12px;margin-bottom:8px}
-  .metric-name{font-size:14px;font-weight:900}
-  .metric-norm{font-size:12px;color:var(--muted);margin-top:2px}
-  .metric-value{font-size:26px;line-height:1;font-weight:950;font-variant-numeric:tabular-nums;min-width:82px;text-align:right}
-  .metric-value small{font-size:13px;color:var(--muted);font-weight:800;margin-left:2px}
-  .badge{font-size:12px;font-weight:900;min-width:58px;text-align:center;border-radius:999px;padding:5px 8px;white-space:nowrap}
-  .b-good{background:#dff7ed;color:var(--good)}
-  .b-warn{background:#fff2cc;color:var(--warn)}
-  .b-bad{background:#ffe4df;color:var(--bad)}
-  .b-na{background:#edf1f5;color:#667085}
-  .history{padding:14px}
-  .history-item{display:grid;grid-template-columns:88px 1fr;gap:12px;border:1px solid var(--line);background:#fff;border-radius:var(--radius);padding:10px;margin-bottom:10px}
-  .history-thumb{width:88px;height:88px;border-radius:6px;object-fit:cover;background:#edf1f5;border:1px solid var(--line)}
-  .history-title{font-size:13px;font-weight:900;margin-bottom:2px}
-  .history-meta{font-size:12px;color:var(--muted);margin-bottom:6px}
-  .history-data{font-size:12px;color:#344054;line-height:1.5;max-height:3em;overflow:hidden}
-  .history-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-  .small-btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:7px 10px;font-size:12px;font-weight:900;cursor:pointer;color:#344054}
+  .topbar{position:sticky;top:0;z-index:20;background:rgba(245,247,251,.96);
+    border-bottom:1px solid var(--line);backdrop-filter:blur(14px);
+    padding:max(12px,env(safe-area-inset-top)) 14px 12px}
+  .top-inner{max-width:1120px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  h1{font-size:20px;line-height:1.2;margin:0;font-weight:950;letter-spacing:0}
+  .sub{font-size:12px;color:var(--muted);margin:3px 0 0}
+  .badge-top{background:#e7f8f4;color:#075e56;border:1px solid #b7e4dc;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:900;white-space:nowrap}
+  .shell{max-width:1120px;margin:0 auto;padding:12px;display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:14px}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
+  .setup{padding:12px}
+  .tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+  .tab,.choice,.btn,.small-btn{border:1px solid var(--line);background:#fff;color:#344054;border-radius:8px;font-weight:900;cursor:pointer}
+  .tab{min-height:54px;padding:11px 10px}
+  .tab.active,.choice.active{border-color:var(--accent);background:var(--soft);color:#075e56;box-shadow:inset 0 0 0 1px var(--accent)}
+  .field-title{font-size:13px;font-weight:950;color:#344054;margin:12px 0 7px;display:flex;align-items:center;gap:8px}
+  .field-title::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent-2)}
+  .grid{display:grid;gap:8px}
+  .grid.two{grid-template-columns:1fr 1fr}
+  .grid.three{grid-template-columns:repeat(3,1fr)}
+  .grid.four{grid-template-columns:repeat(4,1fr)}
+  .choice{min-height:44px;padding:9px 8px;text-align:center}
+  .choice small{display:block;font-size:11px;color:var(--muted);font-weight:800}
+  .choice.active small{color:#0f766e}
+  .stage-wrap{position:relative}
+  .stage{position:relative;background:#111827;border:1px solid #0b1220;border-radius:8px;overflow:hidden;min-height:320px;display:flex;align-items:center;justify-content:center;touch-action:none}
+  canvas,#gaitVideo{position:absolute;inset:0;width:100%;height:100%}
+  #gaitVideo{object-fit:contain;background:#111827}
+  .hint{position:relative;z-index:1;color:#d1d5db;text-align:center;padding:24px;font-size:15px;line-height:1.8}
+  .tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .tools.three{grid-template-columns:1fr 1fr 1fr}
+  .btn{min-height:50px;padding:11px 12px;display:flex;align-items:center;justify-content:center;gap:7px;text-align:center}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.orange{background:var(--accent-2);color:#fff;border-color:var(--accent-2)}
+  .btn:disabled,.small-btn:disabled{opacity:.45;cursor:not-allowed}
+  .status{font-size:13px;color:var(--muted);min-height:21px;text-align:center;margin-top:8px}
+  .result{padding:14px}
+  .big-number{font-size:48px;line-height:1;font-weight:950;letter-spacing:0;font-variant-numeric:tabular-nums;text-align:center;margin:4px 0 6px}
+  .big-number small{font-size:18px;color:var(--muted);font-weight:900}
+  .result-name{text-align:center;font-size:14px;color:#344054;font-weight:900}
+  .step-list{margin-top:12px;border-top:1px solid var(--line)}
+  .step-row{display:grid;grid-template-columns:26px 1fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .step-dot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eef2f7;color:#344054;font-weight:950}
+  .step-row.done .step-dot{background:#dff7ed;color:var(--good)}
+  .row-muted{font-size:12px;color:var(--muted);margin-top:2px}
+  .memo{display:block;width:100%;min-height:68px;border:1px solid var(--line);border-radius:8px;padding:10px 11px;background:#fff;color:var(--ink);resize:vertical}
+  .records{padding:14px}
+  .rec{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px;background:#fff}
+  .rec-title{font-size:13px;font-weight:950;margin-bottom:2px}
+  .rec-meta{font-size:12px;color:var(--muted)}
+  .rec-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+  .small-btn{padding:7px 10px;font-size:12px}
   .small-btn.danger{color:var(--bad)}
-  .note{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:12px 13px;font-size:12px;color:#475467;line-height:1.8}
-  details summary{cursor:pointer;font-weight:900;color:#17202a;font-size:13px}
+  .metric-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+  .metric-table th,.metric-table td{padding:8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  .metric-table th{color:#344054;font-weight:950;width:48%}
+  .tag{display:inline-flex;align-items:center;border-radius:999px;background:#edf2f7;color:#344054;font-size:12px;font-weight:900;padding:4px 8px;margin:3px 4px 3px 0}
+  .tag.r{background:#e0f2fe;color:#075985}
+  .tag.l{background:#fde7f3;color:#9d174d}
+  .video-bar{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;margin-top:10px}
+  .time{font-variant-numeric:tabular-nums;font-size:13px;font-weight:900;color:#344054}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .event-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .event-btn{min-height:50px}
+  .event-btn.r{border-color:#7dd3fc;background:#f0f9ff;color:#075985}
+  .event-btn.l{border-color:#f9a8d4;background:#fdf2f8;color:#9d174d}
+  .cal-box{border:1px solid var(--line);background:#fff;border-radius:8px;padding:10px;margin-top:10px}
+  .inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .num-input{width:92px;border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+  .note{font-size:12px;color:#667085;line-height:1.75;background:#fff;border:1px solid var(--line);border-radius:8px;padding:11px 12px}
   .hidden{display:none!important}
   input[type=file]{display:none}
-  @media (max-width:860px){
+  @media(max-width:900px){
     .shell{grid-template-columns:1fr;padding:10px}
-    .side{display:block}
-    .category-grid{grid-template-columns:repeat(2,1fr)}
-    .position-grid{grid-template-columns:1fr}
-    .topbar-inner{align-items:flex-start}
-    .pill-status{margin-top:1px}
   }
-  @media (max-width:430px){
+  @media(max-width:460px){
     h1{font-size:18px}
-    .metric-card{grid-template-columns:1fr auto;gap:8px}
-    .metric-card .badge{grid-column:1 / -1;justify-self:start}
-    .actions,.secondary-actions{grid-template-columns:1fr}
-    .btn-icon{width:100%}
-    .history-item{grid-template-columns:72px 1fr}
-    .history-thumb{width:72px;height:72px}
+    .top-inner{align-items:flex-start}
+    .grid.four{grid-template-columns:1fr 1fr}
+    .grid.three{grid-template-columns:1fr}
+    .tools,.tools.three{grid-template-columns:1fr}
+    .stage{min-height:300px}
+    .big-number{font-size:42px}
   }
 </style>
 </head>
 <body>
 <header class="topbar">
-  <div class="topbar-inner">
+  <div class="top-inner">
     <div>
-      <h1>ベッドサイド 姿勢・ROM計測</h1>
-      <p class="subtitle">2D骨格推定による簡易計測。臨床判断や正式なゴニオメーター計測の補助として使います。</p>
+      <h1>関節角度・歩行分析</h1>
+      <p class="sub">AI任せではなく、写真・動画に手で印を打って確実に測るシンプル版</p>
     </div>
-    <div class="pill-status" id="modelPill">準備中</div>
+    <div class="badge-top">スマホ対応</div>
   </div>
 </header>
 
 <div class="shell">
-  <main class="main">
-    <div class="section panel setup">
-      <div class="banner hidden" id="httpBanner"></div>
-
-      <p class="section-title">計測方法</p>
-      <div class="segmented mode-grid" id="modeSeg">
-        <button class="choice active" data-mode="photo" type="button">写真で計測<span>ベッド上で確実</span></button>
-        <button class="choice" data-mode="camera" type="button">カメラで計測<span>リアルタイム</span></button>
+  <main>
+    <section class="panel setup">
+      <div class="tabs">
+        <button class="tab active" data-mode="angle" type="button">関節角度<br><small>3点タップ</small></button>
+        <button class="tab" data-mode="gait" type="button">歩行分析<br><small>動画イベント</small></button>
       </div>
 
-      <p class="section-title" style="margin-top:14px">患者さんの体位</p>
-      <div class="segmented position-grid" id="positionSeg">
-        <button class="choice active" data-position="supine" type="button">仰向け<span>上から撮影</span></button>
-        <button class="choice" data-position="sideLying" type="button">横向き<span>ベッド横から</span></button>
-        <button class="choice" data-position="sitting" type="button">端座位<span>横・正面から</span></button>
-      </div>
+      <div id="angleSetup">
+        <p class="field-title">計算方法</p>
+        <div class="grid two" id="calcSeg">
+          <button class="choice active" data-calc="rom" type="button">ROM表示<small>180° - 内角</small></button>
+          <button class="choice" data-calc="inner" type="button">内角表示<small>3点の角度</small></button>
+        </div>
 
-      <p class="section-title" style="margin-top:14px">測る部位</p>
-      <div class="segmented category-grid" id="catSeg">
-        <button class="choice" data-cat="posture" type="button">姿勢</button>
-        <button class="choice" data-cat="neck" type="button">頸部</button>
-        <button class="choice active" data-cat="shoulder" type="button">肩・肘</button>
-        <button class="choice" data-cat="hipknee" type="button">股・膝</button>
-      </div>
+        <p class="field-title">部位</p>
+        <div class="grid four" id="jointSeg">
+          <button class="choice active" data-joint="膝" data-calc-default="rom" type="button">膝</button>
+          <button class="choice" data-joint="肘" data-calc-default="rom" type="button">肘</button>
+          <button class="choice" data-joint="股関節" data-calc-default="rom" type="button">股関節</button>
+          <button class="choice" data-joint="肩" data-calc-default="inner" type="button">肩</button>
+          <button class="choice" data-joint="足関節" data-calc-default="inner" type="button">足関節</button>
+          <button class="choice" data-joint="頸部" data-calc-default="inner" type="button">頸部</button>
+          <button class="choice" data-joint="体幹" data-calc-default="inner" type="button">体幹</button>
+          <button class="choice" data-joint="その他" data-calc-default="inner" type="button">その他</button>
+        </div>
 
-      <div id="viewBlock" style="margin-top:14px">
-        <p class="section-title">撮影方向</p>
-        <div class="segmented view-grid" id="viewSwitch">
-          <button class="choice active" data-view="sagittal" type="button">横向き</button>
-          <button class="choice" data-view="frontal" type="button">正面</button>
+        <p class="field-title">左右</p>
+        <div class="grid three" id="sideSeg">
+          <button class="choice active" data-side="右" type="button">右</button>
+          <button class="choice" data-side="左" type="button">左</button>
+          <button class="choice" data-side="両側/中央" type="button">両側/中央</button>
         </div>
       </div>
 
-      <div id="sideBlock" style="margin-top:14px">
-        <p class="section-title">左右</p>
-        <div class="segmented side-grid" id="sideSeg">
-          <button class="choice active" data-side="both" type="button">両側</button>
-          <button class="choice" data-side="right" type="button">右</button>
-          <button class="choice" data-side="left" type="button">左</button>
+      <div id="gaitSetup" class="hidden">
+        <p class="field-title">歩行イベント</p>
+        <div class="event-grid">
+          <button class="btn event-btn r" data-event="R_HS" type="button">右 接地</button>
+          <button class="btn event-btn l" data-event="L_HS" type="button">左 接地</button>
+          <button class="btn event-btn r" data-event="R_TO" type="button">右 離地</button>
+          <button class="btn event-btn l" data-event="L_TO" type="button">左 離地</button>
+        </div>
+        <div class="cal-box">
+          <div class="inline">
+            <button class="small-btn" id="scaleBtn" type="button">距離校正</button>
+            <input class="num-input" id="scaleCm" type="number" min="1" step="1" value="50">
+            <span class="row-muted">cm の物差し/目印を2点タップ</span>
+          </div>
+          <div class="inline" style="margin-top:8px">
+            <button class="small-btn" id="stepLenBtn" type="button">歩幅2点</button>
+            <span class="row-muted">後ろ足踵 → 前足踵をタップ</span>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="section guidance" id="guide"></div>
-
-    <div class="section">
-      <div class="stage" id="stage">
-        <video id="video" autoplay playsinline muted class="hidden"></video>
-        <img id="photo" class="hidden" alt="">
-        <canvas id="overlay"></canvas>
-        <div class="frameGuide supine" id="frameGuide"></div>
-        <div class="stage-hint" id="hint">「写真を選ぶ」から、対象部位が全部入った写真を読み込みます。</div>
-        <div class="quality hidden" id="quality"></div>
+    <section style="margin-top:12px">
+      <div class="stage-wrap">
+        <div class="stage" id="stage">
+          <canvas id="angleCanvas"></canvas>
+          <video id="gaitVideo" class="hidden" playsinline muted></video>
+          <canvas id="gaitCanvas" class="hidden"></canvas>
+          <div class="hint" id="stageHint">写真を選んで、近位端 → 関節中心 → 遠位端の順にタップしてください。</div>
+        </div>
       </div>
 
-      <div class="actions">
-        <button class="btn btn-primary" id="startBtn" type="button">計測スタート</button>
-        <button class="btn btn-primary" id="uploadBtn" type="button">写真を選ぶ</button>
-        <button class="btn btn-icon" id="flipBtn" type="button" title="前面/背面カメラ切替" aria-label="前面/背面カメラ切替">↻</button>
+      <div id="angleTools">
+        <div class="tools three">
+          <button class="btn primary" id="imageBtn" type="button">写真を選ぶ</button>
+          <button class="btn" id="undoPointBtn" type="button">1点戻す</button>
+          <button class="btn" id="resetAngleBtn" type="button">リセット</button>
+        </div>
+        <div class="tools">
+          <button class="btn" id="recordAngleBtn" type="button" disabled>記録</button>
+          <button class="btn orange" id="saveAngleBtn" type="button" disabled>画像保存</button>
+        </div>
       </div>
-      <div class="secondary-actions">
-        <button class="btn btn-ghost" id="baselineBtn" type="button" disabled>基準姿勢を登録</button>
-        <button class="btn btn-accent" id="saveImageBtn" type="button" disabled>記録＋画像保存</button>
+
+      <div id="gaitTools" class="hidden">
+        <div class="tools">
+          <button class="btn primary" id="videoBtn" type="button">動画を選ぶ</button>
+          <button class="btn" id="clearEventsBtn" type="button">イベント消去</button>
+        </div>
+        <div class="video-bar">
+          <button class="small-btn" id="playBtn" type="button">再生</button>
+          <input id="timeSlider" type="range" min="0" max="0" step="0.001" value="0">
+          <div class="time" id="timeText">0.00s</div>
+        </div>
+        <div class="tools three">
+          <button class="btn" data-jump="-0.10" type="button">-0.10秒</button>
+          <button class="btn" data-jump="0.10" type="button">+0.10秒</button>
+          <button class="btn orange" id="exportGaitBtn" type="button" disabled>CSV保存</button>
+        </div>
       </div>
-      <input type="file" id="fileInput" accept="image/*">
-      <div class="status" id="status">AIモデルを読み込み中です。</div>
-    </div>
+
+      <input id="imageInput" type="file" accept="image/*">
+      <input id="videoInput" type="file" accept="video/*">
+      <div class="status" id="status">準備完了</div>
+    </section>
   </main>
 
-  <aside class="side">
-    <div class="section panel results" id="results">
-      <div class="empty">写真を選ぶと、角度と基準差がここに出ます。</div>
-    </div>
+  <aside>
+    <section class="panel result">
+      <div id="angleResult">
+        <div class="result-name" id="angleName">膝・右 / ROM表示</div>
+        <div class="big-number" id="angleValue">--<small>°</small></div>
+        <div class="step-list" id="pointList"></div>
+      </div>
 
-    <div class="section">
-      <p class="section-title">記録メモ</p>
-      <textarea class="memo" id="memo" placeholder="例：右肩他動、痛みあり、枕なし、ベッド30°"></textarea>
-    </div>
+      <div id="gaitResult" class="hidden">
+        <div class="result-name">歩行分析</div>
+        <table class="metric-table" id="gaitTable"></table>
+        <div id="eventTags" style="margin-top:10px"></div>
+      </div>
+    </section>
 
-    <div class="section panel history" id="savedWrap"></div>
+    <section style="margin-top:12px">
+      <p class="field-title">メモ</p>
+      <textarea id="memo" class="memo" placeholder="例：右膝他動屈曲、疼痛あり / 10m歩行、杖あり"></textarea>
+    </section>
 
-    <div class="note">
-      <details open>
-        <summary>計測時の注意</summary>
-        <div style="margin-top:8px">
-          可能なら写真モードで一度止めて確認してください。仰向けはスマホを対象部位の真上に、横向きはベッド面とカメラをできるだけ平行にします。単一カメラの2D推定なので、回旋や奥行きのある動きは誤差が出ます。診断や治療方針は有資格者の臨床判断で確認してください。
-        </div>
-      </details>
-    </div>
+    <section class="panel records" style="margin-top:12px">
+      <div class="result-name" style="text-align:left">記録</div>
+      <div id="records"></div>
+    </section>
+
+    <section class="note" style="margin-top:12px">
+      関節角度は3点の位置で決まります。写真はできるだけ関節面とカメラを平行にし、中心点を正確に置いてください。歩行分析は動画の現在時刻にイベントを打つ方式なので、スロー再生や一時停止を使うと安定します。
+    </section>
   </aside>
 </div>
 
-<script type="module">
-import { PoseLandmarker, FilesetResolver, DrawingUtils }
-  from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12";
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
 
-const $ = selector => document.querySelector(selector);
-const $$ = selector => Array.from(document.querySelectorAll(selector));
-
-const video = $("#video");
-const photo = $("#photo");
-const canvas = $("#overlay");
-const ctx = canvas.getContext("2d");
+const angleCanvas = $("#angleCanvas");
+const angleCtx = angleCanvas.getContext("2d");
+const gaitCanvas = $("#gaitCanvas");
+const gaitCtx = gaitCanvas.getContext("2d");
 const stage = $("#stage");
+const stageHint = $("#stageHint");
 const statusEl = $("#status");
-const modelPill = $("#modelPill");
-const resultsEl = $("#results");
-const savedWrap = $("#savedWrap");
-const hintEl = $("#hint");
-const qualityEl = $("#quality");
-const frameGuide = $("#frameGuide");
-const guideEl = $("#guide");
+const gaitVideo = $("#gaitVideo");
 const memoEl = $("#memo");
-const startBtn = $("#startBtn");
-const uploadBtn = $("#uploadBtn");
-const flipBtn = $("#flipBtn");
-const baselineBtn = $("#baselineBtn");
-const saveImageBtn = $("#saveImageBtn");
-const fileInput = $("#fileInput");
 
-let landmarker = null;
-let runningMode = "IMAGE";
-let mode = "photo";
-let position = "supine";
-let category = "shoulder";
-let view = "sagittal";
-let side = "both";
-let stream = null;
-let facing = "environment";
-let rafId = null;
-let lastResult = null;
-let currentGroups = [];
-let drawingUtils = null;
+let mode = "angle";
+let joint = "膝";
+let side = "右";
+let calcMode = "rom";
+let angleImage = null;
+let points = [];
+let activePoint = null;
+let lastAngle = null;
+let records = loadRecords();
 
-const secure = window.isSecureContext;
-const labels = {
-  mode:{photo:"写真",camera:"カメラ"},
-  position:{supine:"仰向け",sideLying:"横向き",sitting:"端座位"},
-  category:{posture:"姿勢",neck:"頸部",shoulder:"肩・肘",hipknee:"股・膝"},
-  view:{sagittal:"横向き",frontal:"正面"},
-  side:{both:"両側",right:"右",left:"左"}
+let gaitEvents = [];
+let gaitMode = null;
+let scalePoints = [];
+let stepPoints = [];
+let scaleCmPerPx = null;
+
+const pointLabels = ["端点A", "関節中心", "端点B"];
+const eventLabels = {
+  R_HS:"右接地", L_HS:"左接地", R_TO:"右離地", L_TO:"左離地"
 };
 
-const guideCopy = {
-  supine:{
-    shoot:"スマホを対象部位の真上に置き、肩・骨盤・膝が画面端で切れないようにします。",
-    assist:"枕やシーツで関節が隠れないようにし、介助者の手は関節中心から少し離します。"
-  },
-  sideLying:{
-    shoot:"ベッド横から、体の真横にカメラを置きます。股関節・膝・足首が同じ平面に見える位置が目安です。",
-    assist:"寝返りが難しい場合はクッションで体幹を支え、測る側の関節を手前に出します。"
-  },
-  sitting:{
-    shoot:"端座位では横向きか正面を選び、耳・肩・股関節が画面内に入る高さで撮ります。",
-    assist:"足底接地や背もたれの有無をメモに残すと、次回比較しやすくなります。"
-  }
-};
+function setStatus(text){ statusEl.textContent = text; }
+function escapeHtml(v){ return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
+function fmt(v,d=2){ return Number.isFinite(v) ? v.toFixed(d) : "--"; }
 
-const categoryCopy = {
-  posture:{sagittal:"耳・肩・股関節・膝・くるぶしの並びを見ます。",frontal:"耳・肩・骨盤の左右差と体幹の偏位を見ます。"},
-  neck:{sagittal:"頭から肩までを大きめに入れ、首の前後方向の傾きを見ます。",frontal:"顔と両肩を正面から入れ、頸部側屈を見ます。"},
-  shoulder:{sagittal:"肩・肘・手首・骨盤が入るようにし、上肢挙上と肘屈曲を見ます。",frontal:"正面または上から、肩・肘・手首が隠れない角度で撮ります。"},
-  hipknee:{sagittal:"股関節・膝・足首を同じ平面に入れ、股関節屈曲と膝屈曲を見ます。",frontal:"正面では股関節の外転/内転の参考になります。屈曲角は横向きが安定します。"}
-};
-
-function showBanner(){
-  const banner = $("#httpBanner");
-  if(!secure){
-    banner.classList.remove("hidden");
-    banner.innerHTML = "<b>カメラ計測はHTTPSまたはlocalhostでのみ使えます。</b> このファイルをそのまま開いた場合は、写真で計測を使ってください。";
-  }
+function setMode(next){
+  mode = next;
+  $$(".tab").forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
+  $("#angleSetup").classList.toggle("hidden", mode !== "angle");
+  $("#gaitSetup").classList.toggle("hidden", mode !== "gait");
+  $("#angleTools").classList.toggle("hidden", mode !== "angle");
+  $("#gaitTools").classList.toggle("hidden", mode !== "gait");
+  $("#angleResult").classList.toggle("hidden", mode !== "angle");
+  $("#gaitResult").classList.toggle("hidden", mode !== "gait");
+  angleCanvas.classList.toggle("hidden", mode !== "angle");
+  gaitVideo.classList.toggle("hidden", mode !== "gait");
+  gaitCanvas.classList.toggle("hidden", mode !== "gait");
+  stageHint.textContent = mode === "angle"
+    ? "写真を選んで、近位端 → 関節中心 → 遠位端の順にタップしてください。"
+    : "動画を選び、接地・離地の瞬間で一時停止してイベントボタンを押します。";
+  drawAngle();
+  drawGaitOverlay();
 }
 
-async function initModel(){
-  try{
-    modelPill.textContent = "読込中";
-    statusEl.textContent = "AIモデルを読み込み中です。初回は数秒かかります。";
-    const fileset = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm"
-    );
-    landmarker = await PoseLandmarker.createFromOptions(fileset,{
-      baseOptions:{
-        modelAssetPath:"https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-        delegate:"GPU"
-      },
-      runningMode:"IMAGE",
-      numPoses:1,
-      minPoseDetectionConfidence:0.5,
-      minPosePresenceConfidence:0.5,
-      minTrackingConfidence:0.5
-    });
-    drawingUtils = new DrawingUtils(ctx);
-    modelPill.textContent = "準備完了";
-    statusEl.textContent = "写真を選ぶか、カメラ計測を開始してください。";
-  }catch(error){
-    modelPill.textContent = "読込失敗";
-    statusEl.textContent = "AIモデルを読み込めませんでした。通信環境を確認してください。";
-    console.error(error);
-  }
-  updateButtons();
+function setChoice(container, key, value){
+  $$(container + " .choice").forEach(b => b.classList.toggle("active", b.dataset[key] === value));
 }
 
-function escapeHtml(value){
-  return String(value).replace(/[&<>"']/g, char => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  }[char]));
+function resizeCanvasToImage(canvas, img){
+  const maxW = stage.clientWidth || 900;
+  const scale = Math.min(maxW / img.naturalWidth, 1);
+  const w = Math.round(img.naturalWidth * scale);
+  const h = Math.round(img.naturalHeight * scale);
+  canvas.width = w;
+  canvas.height = h;
+  stage.style.aspectRatio = `${w} / ${h}`;
+  stage.style.minHeight = "0";
+  stage.style.height = "auto";
 }
 
-function angle3(a,b,c){
-  const v1 = {x:a.x-b.x,y:a.y-b.y};
-  const v2 = {x:c.x-b.x,y:c.y-b.y};
+function resizeCanvasToVideo(){
+  const vw = gaitVideo.videoWidth || 1280;
+  const vh = gaitVideo.videoHeight || 720;
+  const maxW = stage.clientWidth || 900;
+  const scale = Math.min(maxW / vw, 1);
+  const w = Math.round(vw * scale);
+  const h = Math.round(vh * scale);
+  gaitCanvas.width = w;
+  gaitCanvas.height = h;
+  gaitVideo.style.width = "100%";
+  gaitVideo.style.height = "100%";
+  stage.style.aspectRatio = `${w} / ${h}`;
+  stage.style.minHeight = "0";
+  stage.style.height = "auto";
+}
+
+function canvasPoint(event, canvas){
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x:(event.clientX - rect.left) * canvas.width / rect.width,
+    y:(event.clientY - rect.top) * canvas.height / rect.height
+  };
+}
+
+function distance(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+
+function angleAt(a,b,c){
+  const v1 = {x:a.x-b.x, y:a.y-b.y};
+  const v2 = {x:c.x-b.x, y:c.y-b.y};
   const dot = v1.x*v2.x + v1.y*v2.y;
   const m1 = Math.hypot(v1.x,v1.y);
   const m2 = Math.hypot(v2.x,v2.y);
   if(!m1 || !m2) return null;
-  return Math.acos(Math.max(-1,Math.min(1,dot/(m1*m2))))*180/Math.PI;
+  return Math.acos(Math.max(-1, Math.min(1, dot/(m1*m2)))) * 180 / Math.PI;
 }
 
-const clamp = (value,min,max) => Math.max(min,Math.min(max,value));
-const round1 = value => value == null ? null : Math.round(value*10)/10;
-const aH = (a,b) => Math.atan2(Math.abs(a.y-b.y),Math.abs(a.x-b.x))*180/Math.PI;
-const aV = (a,b) => Math.atan2(Math.abs(a.x-b.x),Math.abs(a.y-b.y))*180/Math.PI;
-const mid = (a,b) => ({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
-const vis = point => point && (point.visibility === undefined || point.visibility > 0.38);
-
-function judgeDeviation(value,ok,warn){
-  if(value == null) return ["-", "b-na"];
-  return value <= ok ? ["良好","b-good"] : value <= warn ? ["軽度","b-warn"] : ["要確認","b-bad"];
+function currentAngle(){
+  if(points.length < 3) return null;
+  const inner = angleAt(points[0], points[1], points[2]);
+  if(inner == null) return null;
+  return calcMode === "rom" ? Math.max(0, 180 - inner) : inner;
 }
 
-function judgeROM(value,full){
-  if(value == null) return ["-", "b-na"];
-  const ratio = value / full;
-  return ratio >= .9 ? ["良好","b-good"] : ratio >= .6 ? ["軽度制限","b-warn"] : ["制限","b-bad"];
+function updateAngleResult(){
+  const value = currentAngle();
+  lastAngle = value;
+  $("#angleName").textContent = `${joint}・${side} / ${calcMode === "rom" ? "ROM表示" : "内角表示"}`;
+  $("#angleValue").innerHTML = `${value == null ? "--" : Math.round(value*10)/10}<small>°</small>`;
+  const rows = pointLabels.map((label,i) => {
+    const done = points[i];
+    return `<div class="step-row ${done ? "done" : ""}">
+      <div class="step-dot">${i+1}</div>
+      <div><b>${label}</b><div class="row-muted">${done ? `x ${Math.round(done.x)}, y ${Math.round(done.y)}` : "未設定"}</div></div>
+    </div>`;
+  }).join("");
+  $("#pointList").innerHTML = rows;
+  $("#recordAngleBtn").disabled = value == null;
+  $("#saveAngleBtn").disabled = value == null;
 }
 
-function metric(key,name,value,unit,norm,badgeText,badgeClass){
-  return {key,name,val:round1(value),unit,norm,badgeText,badgeClass};
-}
-
-function sideAllowed(metricSide){
-  return side === "both" || side === metricSide;
-}
-
-function baselineKey(metricKey){
-  return [position,category,view,side,metricKey].join("|");
-}
-
-function loadBaseline(){
-  try{return JSON.parse(localStorage.getItem("rom_baselines_v2") || "{}");}
-  catch(error){return {};}
-}
-
-function saveBaselineStore(store){
-  try{localStorage.setItem("rom_baselines_v2",JSON.stringify(store));}
-  catch(error){console.warn(error);}
-}
-
-function enrichWithBaseline(groups){
-  const store = loadBaseline();
-  groups.forEach(group => group[1].forEach(item => {
-    const saved = store[baselineKey(item.key)];
-    if(saved && item.val != null){
-      item.baseline = saved.value;
-      item.delta = round1(item.val - saved.value);
-      item.baselineTime = saved.t;
-    }
-  }));
-  return groups;
-}
-
-function flattenGroups(groups){
-  const flat = [];
-  groups.forEach(group => group[1].forEach(item => {
-    if(item.val != null) flat.push(item);
-  }));
-  return flat;
-}
-
-function computeMetrics(lm){
-  const P = {
-    nose:lm[0], earL:lm[7], earR:lm[8],
-    shL:lm[11], shR:lm[12], elL:lm[13], elR:lm[14],
-    wrL:lm[15], wrR:lm[16], hipL:lm[23], hipR:lm[24],
-    knL:lm[25], knR:lm[26], anL:lm[27], anR:lm[28]
-  };
-  const groups = [];
-
-  if(category === "posture" && view === "sagittal"){
-    const useR = (P.earR?.visibility || 0) + (P.shR?.visibility || 0) >= (P.earL?.visibility || 0) + (P.shL?.visibility || 0);
-    const ear = useR ? P.earR : P.earL;
-    const sh = useR ? P.shR : P.shL;
-    const hip = useR ? P.hipR : P.hipL;
-    const kn = useR ? P.knR : P.knL;
-    const an = useR ? P.anR : P.anL;
-    const items = [];
-    if(vis(ear) && vis(sh)){
-      const cva = aH(ear,sh);
-      const judge = cva >= 50 ? ["良好","b-good"] : cva >= 44 ? ["軽度FHP","b-warn"] : ["FHP","b-bad"];
-      items.push(metric("posture_cva","頭部前方位（CVA近似）",cva,"°","基準 >50°。小さいほど頭部前方。",judge[0],judge[1]));
-    }
-    if(vis(sh) && vis(hip)){
-      const trunk = aV(sh,hip);
-      const judge = judgeDeviation(trunk,3,7);
-      items.push(metric("posture_trunk","体幹前後傾",trunk,"°","垂直からの傾き。理想 0°。",judge[0],judge[1]));
-    }
-    if(vis(hip) && vis(kn) && vis(an)){
-      const knee = clamp(180 - angle3(hip,kn,an),0,180);
-      const judge = judgeDeviation(Math.abs(knee),5,12);
-      items.push(metric("posture_knee","膝屈曲（姿勢）",knee,"°","中間位からの膝屈曲。",judge[0],judge[1]));
-    }
-    groups.push(["矢状面アライメント",items]);
+function drawAngle(){
+  angleCtx.clearRect(0,0,angleCanvas.width,angleCanvas.height);
+  if(angleImage){
+    angleCtx.drawImage(angleImage,0,0,angleCanvas.width,angleCanvas.height);
+    stageHint.classList.add("hidden");
+  }else{
+    stageHint.classList.remove("hidden");
   }
-
-  if(category === "posture" && view === "frontal"){
-    const items = [];
-    if(vis(P.earL) && vis(P.earR)){
-      const tilt = aH(P.earL,P.earR);
-      const judge = judgeDeviation(tilt,1.5,4);
-      items.push(metric("posture_head_tilt","頭部側方傾斜",tilt,"°","左右の耳の高さ差。理想 0°。",judge[0],judge[1]));
+  if(points.length){
+    angleCtx.save();
+    angleCtx.lineWidth = 4;
+    angleCtx.lineCap = "round";
+    if(points.length >= 2){
+      angleCtx.strokeStyle = "#0f766e";
+      angleCtx.beginPath();
+      angleCtx.moveTo(points[0].x, points[0].y);
+      angleCtx.lineTo(points[1].x, points[1].y);
+      if(points.length >= 3) angleCtx.lineTo(points[2].x, points[2].y);
+      angleCtx.stroke();
     }
-    if(vis(P.shL) && vis(P.shR)){
-      const tilt = aH(P.shL,P.shR);
-      const higher = P.shL.y < P.shR.y ? "左高位" : "右高位";
-      const judge = judgeDeviation(tilt,1.5,4);
-      items.push(metric("posture_shoulder_tilt","肩の高さ差",tilt,"°",tilt >= 1.5 ? higher : "ほぼ水平",judge[0],judge[1]));
-    }
-    if(vis(P.hipL) && vis(P.hipR)){
-      const tilt = aH(P.hipL,P.hipR);
-      const judge = judgeDeviation(tilt,1.5,4);
-      items.push(metric("posture_pelvis_tilt","骨盤傾斜",tilt,"°","左右の骨盤高さ差。理想 0°。",judge[0],judge[1]));
-    }
-    if(vis(P.shL) && vis(P.shR) && vis(P.hipL) && vis(P.hipR)){
-      const shM = mid(P.shL,P.shR);
-      const hipM = mid(P.hipL,P.hipR);
-      const width = Math.abs(P.shL.x-P.shR.x) || 1;
-      const shift = Math.abs(shM.x-hipM.x)/width*100;
-      const judge = judgeDeviation(shift,5,12);
-      items.push(metric("posture_trunk_shift","体幹側方偏位",shift,"%","肩幅比の体幹中心ズレ。",judge[0],judge[1]));
-    }
-    groups.push(["前額面アライメント",items]);
-  }
-
-  if(category === "neck"){
-    const useR = (P.earR?.visibility || 0) >= (P.earL?.visibility || 0);
-    const ear = useR ? P.earR : P.earL;
-    const sh = useR ? P.shR : P.shL;
-    const items = [];
-    if(view === "sagittal" && vis(ear) && vis(sh)){
-      const tilt = aV(ear,sh);
-      items.push(metric("neck_sagittal","頭頸部傾き",tilt,"°","側面での肩基準の頭部傾き。屈曲/伸展の参考。",...judgeROM(tilt,50)));
-    }
-    if(view === "frontal" && vis(P.earL) && vis(P.earR)){
-      const lateral = aH(P.earL,P.earR);
-      items.push(metric("neck_lateral","頸部側屈",lateral,"°","参考 0-45°。",...judgeROM(lateral,45)));
-    }
-    groups.push(["頸部 可動域",items]);
-  }
-
-  if(category === "shoulder"){
-    const items = [];
-    if(sideAllowed("right") && vis(P.shR) && vis(P.hipR) && vis(P.elR)){
-      const angle = clamp(angle3(P.hipR,P.shR,P.elR),0,180);
-      items.push(metric("shoulder_r","右肩 挙上",angle,"°","屈曲/外転の参考 0-180°。",...judgeROM(angle,180)));
-    }
-    if(sideAllowed("left") && vis(P.shL) && vis(P.hipL) && vis(P.elL)){
-      const angle = clamp(angle3(P.hipL,P.shL,P.elL),0,180);
-      items.push(metric("shoulder_l","左肩 挙上",angle,"°","屈曲/外転の参考 0-180°。",...judgeROM(angle,180)));
-    }
-    if(sideAllowed("right") && vis(P.shR) && vis(P.elR) && vis(P.wrR)){
-      const angle = clamp(180 - angle3(P.shR,P.elR,P.wrR),0,180);
-      items.push(metric("elbow_r","右肘 屈曲",angle,"°","参考 0-150°。",...judgeROM(angle,150)));
-    }
-    if(sideAllowed("left") && vis(P.shL) && vis(P.elL) && vis(P.wrL)){
-      const angle = clamp(180 - angle3(P.shL,P.elL,P.wrL),0,180);
-      items.push(metric("elbow_l","左肘 屈曲",angle,"°","参考 0-150°。",...judgeROM(angle,150)));
-    }
-    groups.push(["肩・肘 可動域",items]);
-  }
-
-  if(category === "hipknee"){
-    const items = [];
-    if(sideAllowed("right") && vis(P.shR) && vis(P.hipR) && vis(P.knR)){
-      const angle = clamp(180 - angle3(P.shR,P.hipR,P.knR),0,180);
-      items.push(metric("hip_r","右股関節 屈曲",angle,"°","中間位からの屈曲。参考 0-120°。",...judgeROM(angle,120)));
-    }
-    if(sideAllowed("left") && vis(P.shL) && vis(P.hipL) && vis(P.knL)){
-      const angle = clamp(180 - angle3(P.shL,P.hipL,P.knL),0,180);
-      items.push(metric("hip_l","左股関節 屈曲",angle,"°","中間位からの屈曲。参考 0-120°。",...judgeROM(angle,120)));
-    }
-    if(sideAllowed("right") && vis(P.hipR) && vis(P.knR) && vis(P.anR)){
-      const angle = clamp(180 - angle3(P.hipR,P.knR,P.anR),0,180);
-      items.push(metric("knee_r","右膝 屈曲",angle,"°","参考 0-135°。",...judgeROM(angle,135)));
-    }
-    if(sideAllowed("left") && vis(P.hipL) && vis(P.knL) && vis(P.anL)){
-      const angle = clamp(180 - angle3(P.hipL,P.knL,P.anL),0,180);
-      items.push(metric("knee_l","左膝 屈曲",angle,"°","参考 0-135°。",...judgeROM(angle,135)));
-    }
-    groups.push(["股・膝 可動域",items]);
-  }
-
-  return enrichWithBaseline(groups);
-}
-
-function contextLine(){
-  const sideText = category === "shoulder" || category === "hipknee" ? ` / ${labels.side[side]}` : "";
-  const viewText = category === "posture" || category === "neck" ? ` / ${labels.view[view]}` : "";
-  return `${labels.position[position]} / ${labels.category[category]}${viewText}${sideText}`;
-}
-
-function updateGuide(){
-  const body = guideCopy[position];
-  const target = categoryCopy[category][view] || categoryCopy[category].sagittal;
-  guideEl.innerHTML = `
-    <div class="guide-row"><div class="guide-label">撮影</div><div><b>${labels.position[position]}</b>：${body.shoot}</div></div>
-    <div class="guide-row"><div class="guide-label">部位</div><div><b>${labels.category[category]}</b>：${target}</div></div>
-    <div class="guide-row"><div class="guide-label">介助</div><div>${body.assist}</div></div>
-  `;
-  $("#viewBlock").style.display = (category === "posture" || category === "neck") ? "block" : "none";
-  $("#sideBlock").style.display = (category === "shoulder" || category === "hipknee") ? "block" : "none";
-  frameGuide.className = `frameGuide ${position}`;
-}
-
-function syncCanvas(width,height){
-  if(!width || !height) return;
-  canvas.width = width;
-  canvas.height = height;
-  stage.style.aspectRatio = `${width} / ${height}`;
-}
-
-function drawLiveOverlay(lm){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  if(!drawingUtils) return;
-  drawingUtils.drawConnectors(lm,PoseLandmarker.POSE_CONNECTIONS,{color:"rgba(15,118,110,.94)",lineWidth:4});
-  drawingUtils.drawLandmarks(lm,{radius:4,color:"#f59e0b",fillColor:"#f59e0b"});
-}
-
-function renderResults(groups){
-  currentGroups = groups || [];
-  if(!groups || groups.every(group => group[1].length === 0)){
-    resultsEl.innerHTML = '<div class="empty">骨格を検出できません。対象部位が画面内に入り、手や寝具で関節が隠れない写真を選んでください。</div>';
-    updateButtons();
-    return;
-  }
-
-  let html = "";
-  for(const [title,items] of groups){
-    if(!items.length) continue;
-    html += `<div class="group-title">${escapeHtml(title)}</div>`;
-    for(const item of items){
-      const value = item.val == null ? "-" : `${item.val}<small>${escapeHtml(item.unit)}</small>`;
-      const deltaText = item.delta == null ? "" : ` / 基準差 ${item.delta >= 0 ? "+" : ""}${item.delta}${item.unit}`;
-      const norm = `${item.norm}${deltaText}`;
-      html += `
-        <div class="metric-card">
-          <div>
-            <div class="metric-name">${escapeHtml(item.name)}</div>
-            <div class="metric-norm">${escapeHtml(norm)}</div>
-          </div>
-          <div class="metric-value">${value}</div>
-          <div class="badge ${item.badgeClass}">${escapeHtml(item.badgeText)}</div>
-        </div>`;
-    }
-  }
-  resultsEl.innerHTML = html;
-  updateButtons();
-}
-
-function setQuality(state,message){
-  qualityEl.classList.remove("hidden","ok","warn");
-  qualityEl.classList.add(state === "ok" ? "ok" : "warn");
-  qualityEl.textContent = message;
-}
-
-function clearMeasurement(message){
-  lastResult = null;
-  currentGroups = [];
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  resultsEl.innerHTML = `<div class="empty">${escapeHtml(message)}</div>`;
-  qualityEl.classList.add("hidden");
-  updateButtons();
-}
-
-function updateButtons(){
-  const hasMetrics = flattenGroups(currentGroups).length > 0;
-  baselineBtn.disabled = !hasMetrics;
-  saveImageBtn.disabled = !hasMetrics;
-  startBtn.classList.toggle("hidden",mode !== "camera");
-  flipBtn.classList.toggle("hidden",mode !== "camera");
-  uploadBtn.classList.toggle("hidden",mode !== "photo");
-}
-
-async function loop(){
-  if(mode !== "camera" || !stream || !landmarker) return;
-  if(runningMode !== "VIDEO"){
-    await landmarker.setOptions({runningMode:"VIDEO"});
-    runningMode = "VIDEO";
-  }
-  if(video.readyState >= 2){
-    syncCanvas(video.videoWidth,video.videoHeight);
-    const result = landmarker.detectForVideo(video,performance.now());
-    if(result.landmarks && result.landmarks.length){
-      lastResult = result.landmarks[0];
-      drawLiveOverlay(lastResult);
-      const groups = computeMetrics(lastResult);
-      renderResults(groups);
-      const ok = flattenGroups(groups).length > 0;
-      setQuality(ok ? "ok" : "warn", ok ? "検出中。必要な角度が読めています。" : "検出中。一部の関節が隠れています。");
-    }else{
-      lastResult = null;
-      currentGroups = [];
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      setQuality("warn","人物を検出できません。対象部位を枠内に入れてください。");
-      updateButtons();
-    }
-  }
-  rafId = requestAnimationFrame(loop);
-}
-
-async function startCamera(){
-  if(!landmarker){
-    statusEl.textContent = "AIモデルを読み込み中です。";
-    return;
-  }
-  stopCamera();
-  try{
-    stream = await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:facing,width:{ideal:1280},height:{ideal:960}},
-      audio:false
+    points.forEach((p,i) => {
+      angleCtx.beginPath();
+      angleCtx.fillStyle = i === 1 ? "#d76628" : "#0f766e";
+      angleCtx.strokeStyle = "#fff";
+      angleCtx.lineWidth = 3;
+      angleCtx.arc(p.x,p.y,10,0,Math.PI*2);
+      angleCtx.fill();
+      angleCtx.stroke();
+      angleCtx.fillStyle = "#fff";
+      angleCtx.font = "900 12px sans-serif";
+      angleCtx.textAlign = "center";
+      angleCtx.textBaseline = "middle";
+      angleCtx.fillText(String(i+1), p.x, p.y);
+      angleCtx.fillStyle = "#111827";
+      angleCtx.strokeStyle = "#fff";
+      angleCtx.lineWidth = 4;
+      angleCtx.font = "900 14px sans-serif";
+      angleCtx.textAlign = "left";
+      const tx = p.x + 13;
+      const ty = p.y - 13;
+      angleCtx.strokeText(pointLabels[i], tx, ty);
+      angleCtx.fillText(pointLabels[i], tx, ty);
     });
-    video.srcObject = stream;
-    video.classList.remove("hidden");
-    photo.classList.add("hidden");
-    hintEl.classList.add("hidden");
-    frameGuide.classList.remove("hidden");
-    await video.play();
-    statusEl.textContent = "計測中です。対象部位を画面内に入れてください。";
-    loop();
-  }catch(error){
-    statusEl.textContent = secure ? "カメラを起動できません。ブラウザのカメラ許可を確認してください。" : "この開き方ではカメラを使えません。写真で計測を使ってください。";
-    console.error(error);
+    const v = currentAngle();
+    if(v != null){
+      const b = points[1];
+      angleCtx.fillStyle = "rgba(17,24,39,.78)";
+      angleCtx.fillRect(10,10,190,48);
+      angleCtx.fillStyle = "#fff";
+      angleCtx.font = "900 24px sans-serif";
+      angleCtx.fillText(`${Math.round(v*10)/10}°`,22,43);
+      angleCtx.font = "700 12px sans-serif";
+      angleCtx.fillText(calcMode === "rom" ? "ROM" : "内角",96,43);
+      drawArc(points[0],b,points[2]);
+    }
+    angleCtx.restore();
   }
+  updateAngleResult();
 }
 
-function stopCamera(){
-  if(rafId) cancelAnimationFrame(rafId);
-  rafId = null;
-  if(stream){
-    stream.getTracks().forEach(track => track.stop());
-    stream = null;
-  }
+function drawArc(a,b,c){
+  const r = 38;
+  const ang1 = Math.atan2(a.y-b.y,a.x-b.x);
+  const ang2 = Math.atan2(c.y-b.y,c.x-b.x);
+  angleCtx.strokeStyle = "#f59e0b";
+  angleCtx.lineWidth = 4;
+  angleCtx.beginPath();
+  angleCtx.arc(b.x,b.y,r,ang1,ang2,false);
+  angleCtx.stroke();
 }
 
-async function analyzePhoto(file){
-  if(!landmarker){
-    statusEl.textContent = "AIモデルを読み込み中です。";
-    return;
+function nearestPoint(p){
+  let best = null;
+  points.forEach((pt,i) => {
+    const d = distance(p,pt);
+    if(d < 28 && (!best || d < best.d)) best = {i,d};
+  });
+  return best;
+}
+
+angleCanvas.addEventListener("pointerdown", event => {
+  if(mode !== "angle" || !angleImage) return;
+  angleCanvas.setPointerCapture(event.pointerId);
+  const p = canvasPoint(event, angleCanvas);
+  const near = nearestPoint(p);
+  if(near){
+    activePoint = near.i;
+  }else if(points.length < 3){
+    points.push(p);
+    activePoint = points.length - 1;
+  }else{
+    activePoint = null;
   }
-  stopCamera();
-  if(runningMode !== "IMAGE"){
-    await landmarker.setOptions({runningMode:"IMAGE"});
-    runningMode = "IMAGE";
-  }
+  drawAngle();
+});
+
+angleCanvas.addEventListener("pointermove", event => {
+  if(activePoint == null) return;
+  points[activePoint] = canvasPoint(event, angleCanvas);
+  drawAngle();
+});
+
+angleCanvas.addEventListener("pointerup", () => { activePoint = null; });
+angleCanvas.addEventListener("pointercancel", () => { activePoint = null; });
+
+function loadImage(file){
   const url = URL.createObjectURL(file);
-  photo.onload = () => {
-    syncCanvas(photo.naturalWidth,photo.naturalHeight);
-    video.classList.add("hidden");
-    photo.classList.remove("hidden");
-    hintEl.classList.add("hidden");
-    frameGuide.classList.remove("hidden");
-    const result = landmarker.detect(photo);
-    if(result.landmarks && result.landmarks.length){
-      lastResult = result.landmarks[0];
-      drawLiveOverlay(lastResult);
-      const groups = computeMetrics(lastResult);
-      renderResults(groups);
-      const ok = flattenGroups(groups).length > 0;
-      setQuality(ok ? "ok" : "warn", ok ? "解析完了。角度を確認できます。" : "解析完了。一部の角度は関節が隠れていて出ません。");
-      statusEl.textContent = "解析完了。部位や左右を切り替えると同じ写真で再計算できます。";
-    }else{
-      clearMeasurement("骨格を検出できませんでした。明るく、対象部位が隠れていない写真を選んでください。");
-      statusEl.textContent = "検出できませんでした。別の写真をお試しください。";
-    }
+  const img = new Image();
+  img.onload = () => {
+    angleImage = img;
+    points = [];
+    resizeCanvasToImage(angleCanvas,img);
+    drawAngle();
+    setStatus("3点をタップしてください。点はドラッグで微調整できます。");
     URL.revokeObjectURL(url);
   };
-  photo.onerror = () => {
+  img.onerror = () => {
     URL.revokeObjectURL(url);
-    statusEl.textContent = "写真を読み込めませんでした。別の画像を選んでください。";
+    setStatus("画像を読み込めませんでした。");
   };
-  photo.src = url;
+  img.src = url;
 }
 
-function registerBaseline(){
-  const metrics = flattenGroups(currentGroups);
-  if(!metrics.length) return;
-  const store = loadBaseline();
-  const stamp = new Date().toLocaleString("ja-JP");
-  metrics.forEach(item => {
-    store[baselineKey(item.key)] = {value:item.val,t:stamp,name:item.name};
-  });
-  saveBaselineStore(store);
-  if(lastResult) renderResults(computeMetrics(lastResult));
-  statusEl.textContent = `基準姿勢を登録しました。以後は基準差を表示します。`;
+function angleRecord(){
+  if(lastAngle == null) return;
+  const rec = {
+    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    type:"angle",
+    t:new Date().toLocaleString("ja-JP"),
+    title:`${joint}・${side}`,
+    value:Math.round(lastAngle*10)/10,
+    calc:calcMode,
+    memo:memoEl.value.trim()
+  };
+  records.unshift(rec);
+  saveRecords();
+  renderRecords();
+  setStatus("角度を記録しました。");
 }
 
-function mediaElement(){
-  return mode === "camera" && !video.classList.contains("hidden") ? video : photo;
-}
-
-function mediaSize(){
-  const media = mediaElement();
-  if(media === video) return {width:video.videoWidth || 1280,height:video.videoHeight || 960};
-  return {width:photo.naturalWidth || 1280,height:photo.naturalHeight || 960};
-}
-
-function drawPose(targetCtx,lm,width,height,lineWidth,pointRadius){
-  targetCtx.save();
-  targetCtx.lineCap = "round";
-  targetCtx.lineJoin = "round";
-  targetCtx.strokeStyle = "rgba(15,118,110,.96)";
-  targetCtx.lineWidth = lineWidth;
-  for(const conn of PoseLandmarker.POSE_CONNECTIONS){
-    const a = lm[conn.start];
-    const b = lm[conn.end];
-    if(!vis(a) || !vis(b)) continue;
-    targetCtx.beginPath();
-    targetCtx.moveTo(a.x*width,a.y*height);
-    targetCtx.lineTo(b.x*width,b.y*height);
-    targetCtx.stroke();
-  }
-  targetCtx.fillStyle = "#f59e0b";
-  targetCtx.strokeStyle = "#ffffff";
-  targetCtx.lineWidth = Math.max(2,lineWidth*.45);
-  lm.forEach(point => {
-    if(!vis(point)) return;
-    targetCtx.beginPath();
-    targetCtx.arc(point.x*width,point.y*height,pointRadius,0,Math.PI*2);
-    targetCtx.fill();
-    targetCtx.stroke();
-  });
-  targetCtx.restore();
-}
-
-function wrapText(targetCtx,text,x,y,maxWidth,lineHeight){
-  const words = String(text).split("");
-  let line = "";
-  let cursorY = y;
-  for(const char of words){
-    const test = line + char;
-    if(targetCtx.measureText(test).width > maxWidth && line){
-      targetCtx.fillText(line,x,cursorY);
-      line = char;
-      cursorY += lineHeight;
-    }else{
-      line = test;
-    }
-  }
-  if(line) targetCtx.fillText(line,x,cursorY);
-  return cursorY + lineHeight;
-}
-
-function buildSnapshotCanvas({thumb=false}={}){
-  const media = mediaElement();
-  const size = mediaSize();
-  const maxWidth = thumb ? 520 : 1400;
-  const maxHeight = thumb ? 520 : 1400;
-  const scale = Math.min(maxWidth/size.width,maxHeight/size.height,1);
-  const imageW = Math.max(1,Math.round(size.width*scale));
-  const imageH = Math.max(1,Math.round(size.height*scale));
-  const metrics = flattenGroups(currentGroups);
-  const memo = memoEl.value.trim();
-  const footerLines = Math.max(6,metrics.length + (memo ? 2 : 0) + 4);
-  const footerH = thumb ? 190 : Math.min(420,90 + footerLines*28);
+function saveAngleImage(){
+  if(!angleImage || lastAngle == null) return;
   const out = document.createElement("canvas");
-  out.width = imageW;
-  out.height = imageH + footerH;
-  const outCtx = out.getContext("2d");
-
-  outCtx.fillStyle = "#ffffff";
-  outCtx.fillRect(0,0,out.width,out.height);
-  outCtx.drawImage(media,0,0,imageW,imageH);
-  if(lastResult) drawPose(outCtx,lastResult,imageW,imageH,thumb ? 3 : 6,thumb ? 3 : 6);
-
-  outCtx.fillStyle = "rgba(17,24,39,.68)";
-  outCtx.fillRect(0,0,imageW,thumb ? 42 : 56);
-  outCtx.fillStyle = "#ffffff";
-  outCtx.font = thumb ? "700 16px sans-serif" : "800 24px sans-serif";
-  outCtx.fillText(labels.category[category] + " ROM",14,thumb ? 27 : 36);
-  outCtx.font = thumb ? "600 11px sans-serif" : "700 14px sans-serif";
-  outCtx.fillText(contextLine(),thumb ? 112 : 160,thumb ? 27 : 36);
-
-  const footerY = imageH;
-  outCtx.fillStyle = "#f8fafc";
-  outCtx.fillRect(0,footerY,imageW,footerH);
-  outCtx.fillStyle = "#0f766e";
-  outCtx.fillRect(0,footerY,6,footerH);
-
-  let y = footerY + (thumb ? 24 : 34);
-  outCtx.fillStyle = "#17202a";
-  outCtx.font = thumb ? "800 15px sans-serif" : "900 22px sans-serif";
-  outCtx.fillText("姿勢・ROM 記録",16,y);
-  y += thumb ? 20 : 28;
-  outCtx.fillStyle = "#475467";
-  outCtx.font = thumb ? "600 11px sans-serif" : "700 14px sans-serif";
-  outCtx.fillText(`${new Date().toLocaleString("ja-JP")} / ${contextLine()}`,16,y);
-  y += thumb ? 22 : 28;
-
-  outCtx.fillStyle = "#17202a";
-  outCtx.font = thumb ? "700 12px sans-serif" : "800 16px sans-serif";
-  const metricText = metrics.map(item => {
-    const delta = item.delta == null ? "" : ` (${item.delta >= 0 ? "+" : ""}${item.delta}${item.unit})`;
-    return `${item.name}: ${item.val}${item.unit}${delta}`;
-  });
-  const maxTextWidth = imageW - 32;
-  for(const line of metricText){
-    if(y > out.height - 28) break;
-    y = wrapText(outCtx,line,16,y,maxTextWidth,thumb ? 16 : 22);
-  }
-  if(memo && y < out.height - 22){
-    y += thumb ? 2 : 6;
-    outCtx.fillStyle = "#667085";
-    outCtx.font = thumb ? "600 11px sans-serif" : "700 14px sans-serif";
-    wrapText(outCtx,`メモ: ${memo}`,16,y,maxTextWidth,thumb ? 15 : 20);
-  }
-  return out;
+  out.width = angleCanvas.width;
+  out.height = angleCanvas.height + 132;
+  const o = out.getContext("2d");
+  o.fillStyle = "#fff";
+  o.fillRect(0,0,out.width,out.height);
+  o.drawImage(angleCanvas,0,0);
+  const y = angleCanvas.height;
+  o.fillStyle = "#f8fafc";
+  o.fillRect(0,y,out.width,132);
+  o.fillStyle = "#0f766e";
+  o.fillRect(0,y,6,132);
+  o.fillStyle = "#17202a";
+  o.font = "900 22px sans-serif";
+  o.fillText(`${joint}・${side}  ${Math.round(lastAngle*10)/10}°`,18,y+34);
+  o.fillStyle = "#475467";
+  o.font = "700 14px sans-serif";
+  o.fillText(`${calcMode === "rom" ? "ROM表示（180°-内角）" : "内角表示"} / ${new Date().toLocaleString("ja-JP")}`,18,y+60);
+  const memo = memoEl.value.trim();
+  if(memo) wrapText(o,`メモ: ${memo}`,18,y+88,out.width-36,18);
+  downloadCanvas(out,`joint_angle_${Date.now()}.png`);
 }
 
-function filename(){
-  const stamp = new Date().toISOString().slice(0,19).replace(/[-:T]/g,"");
-  const parts = [stamp,labels.position[position],labels.category[category]];
-  if(category === "shoulder" || category === "hipknee") parts.push(labels.side[side]);
-  return `rom_${parts.join("_")}.png`;
+function wrapText(ctx,text,x,y,maxWidth,lineHeight){
+  let line = "";
+  let yy = y;
+  for(const ch of text){
+    const test = line + ch;
+    if(ctx.measureText(test).width > maxWidth && line){
+      ctx.fillText(line,x,yy);
+      line = ch;
+      yy += lineHeight;
+    }else line = test;
+  }
+  if(line) ctx.fillText(line,x,yy);
 }
 
-function downloadCanvas(out,name){
-  out.toBlob(blob => {
-    if(!blob){
-      statusEl.textContent = "画像を作成できませんでした。";
-      return;
-    }
+function downloadCanvas(canvas,name){
+  canvas.toBlob(blob => {
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = name;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url),1200);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url),1000);
   },"image/png");
 }
 
-function loadRecs(){
-  try{return JSON.parse(localStorage.getItem("rom_recs_v2") || "[]");}
-  catch(error){return [];}
-}
-
-function saveRecs(records){
-  try{
-    localStorage.setItem("rom_recs_v2",JSON.stringify(records.slice(0,30)));
-  }catch(error){
-    const smaller = records.map(record => ({...record,image:null})).slice(0,30);
-    try{localStorage.setItem("rom_recs_v2",JSON.stringify(smaller));}catch(e){}
-  }
-}
-
-function saveCurrentImage(){
-  const metrics = flattenGroups(currentGroups);
-  if(!metrics.length) return;
-  const fullCanvas = buildSnapshotCanvas();
-  downloadCanvas(fullCanvas,filename());
-
-  let image = null;
-  try{image = buildSnapshotCanvas({thumb:true}).toDataURL("image/jpeg",.78);}
-  catch(error){console.warn(error);}
-  const record = {
-    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-    t: new Date().toLocaleString("ja-JP"),
-    context: contextLine(),
-    memo: memoEl.value.trim(),
-    data: metrics.map(item => ({
-      name:item.name,
-      val:item.val,
-      unit:item.unit,
-      delta:item.delta
-    })),
-    image
+function loadVideo(file){
+  const url = URL.createObjectURL(file);
+  gaitVideo.src = url;
+  gaitVideo.onloadedmetadata = () => {
+    resizeCanvasToVideo();
+    $("#timeSlider").max = gaitVideo.duration || 0;
+    $("#timeSlider").value = 0;
+    gaitEvents = [];
+    scalePoints = [];
+    stepPoints = [];
+    scaleCmPerPx = null;
+    stageHint.classList.add("hidden");
+    setStatus("動画を読み込みました。接地/離地の瞬間でイベントを押してください。");
+    updateVideoTime();
+    updateGaitResults();
+    drawGaitOverlay();
   };
-  const records = loadRecs();
-  records.unshift(record);
-  saveRecs(records);
-  renderRecs();
-  statusEl.textContent = "記録しました。PNG画像の保存も開始しました。";
 }
 
-function renderRecs(){
-  const records = loadRecs();
+function updateVideoTime(){
+  $("#timeSlider").value = gaitVideo.currentTime || 0;
+  $("#timeText").textContent = `${fmt(gaitVideo.currentTime || 0,2)}s`;
+  drawGaitOverlay();
+}
+
+function addGaitEvent(code){
+  if(!gaitVideo.src) return setStatus("先に動画を選んでください。");
+  gaitEvents.push({code,t:gaitVideo.currentTime});
+  gaitEvents.sort((a,b) => a.t - b.t);
+  updateGaitResults();
+  setStatus(`${eventLabels[code]} ${fmt(gaitVideo.currentTime,2)}s を記録しました。`);
+}
+
+function sideOf(code){ return code[0]; }
+function typeOf(code){ return code.slice(2); }
+function avg(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null; }
+
+function gaitMetrics(){
+  const hs = gaitEvents.filter(e => typeOf(e.code) === "HS").sort((a,b)=>a.t-b.t);
+  const to = gaitEvents.filter(e => typeOf(e.code) === "TO").sort((a,b)=>a.t-b.t);
+  const stepIntervals = [];
+  for(let i=1;i<hs.length;i++){
+    if(sideOf(hs[i].code) !== sideOf(hs[i-1].code)) stepIntervals.push(hs[i].t - hs[i-1].t);
+  }
+  const strideR = intervals(hs.filter(e => sideOf(e.code)==="R"));
+  const strideL = intervals(hs.filter(e => sideOf(e.code)==="L"));
+  const stepRtoL = [];
+  const stepLtoR = [];
+  for(let i=1;i<hs.length;i++){
+    const prev = sideOf(hs[i-1].code);
+    const cur = sideOf(hs[i].code);
+    if(prev === "R" && cur === "L") stepRtoL.push(hs[i].t - hs[i-1].t);
+    if(prev === "L" && cur === "R") stepLtoR.push(hs[i].t - hs[i-1].t);
+  }
+  const stanceR = stanceFor("R",hs,to);
+  const stanceL = stanceFor("L",hs,to);
+  const cadence = hs.length >= 2 ? (hs.length - 1) / (hs[hs.length-1].t - hs[0].t) * 60 : null;
+  return {cadence, stepAvg:avg(stepIntervals), strideR:avg(strideR), strideL:avg(strideL),
+    stepRtoL:avg(stepRtoL), stepLtoR:avg(stepLtoR), stanceR, stanceL};
+}
+
+function intervals(events){
+  const out = [];
+  for(let i=1;i<events.length;i++) out.push(events[i].t - events[i-1].t);
+  return out;
+}
+
+function stanceFor(side,hs,to){
+  const sameHs = hs.filter(e => sideOf(e.code) === side);
+  const sameTo = to.filter(e => sideOf(e.code) === side);
+  const vals = [];
+  for(let i=0;i<sameHs.length-1;i++){
+    const start = sameHs[i].t;
+    const end = sameHs[i+1].t;
+    const off = sameTo.find(e => e.t > start && e.t < end);
+    if(off) vals.push({stance:off.t-start, cycle:end-start, pct:(off.t-start)/(end-start)*100});
+  }
+  if(!vals.length) return null;
+  return {time:avg(vals.map(v=>v.stance)), pct:avg(vals.map(v=>v.pct))};
+}
+
+function updateGaitResults(){
+  const m = gaitMetrics();
+  const rows = [
+    ["ケイデンス", m.cadence == null ? "--" : `${fmt(m.cadence,1)} 歩/分`],
+    ["平均ステップ時間", m.stepAvg == null ? "--" : `${fmt(m.stepAvg,2)} 秒`],
+    ["右→左ステップ", m.stepRtoL == null ? "--" : `${fmt(m.stepRtoL,2)} 秒`],
+    ["左→右ステップ", m.stepLtoR == null ? "--" : `${fmt(m.stepLtoR,2)} 秒`],
+    ["右ストライド", m.strideR == null ? "--" : `${fmt(m.strideR,2)} 秒`],
+    ["左ストライド", m.strideL == null ? "--" : `${fmt(m.strideL,2)} 秒`],
+    ["右立脚相", m.stanceR == null ? "--" : `${fmt(m.stanceR.time,2)} 秒 / ${fmt(m.stanceR.pct,1)}%`],
+    ["左立脚相", m.stanceL == null ? "--" : `${fmt(m.stanceL.time,2)} 秒 / ${fmt(m.stanceL.pct,1)}%`],
+    ["歩幅", stepLengthText()]
+  ];
+  $("#gaitTable").innerHTML = rows.map(r => `<tr><th>${r[0]}</th><td>${r[1]}</td></tr>`).join("");
+  $("#eventTags").innerHTML = gaitEvents.map((e,i) => `<span class="tag ${sideOf(e.code)==='R'?'r':'l'}">${i+1}. ${eventLabels[e.code]} ${fmt(e.t,2)}s</span>`).join("");
+  $("#exportGaitBtn").disabled = gaitEvents.length === 0;
+}
+
+function stepLengthText(){
+  if(stepPoints.length < 2) return "--";
+  const px = distance(stepPoints[0], stepPoints[1]);
+  if(scaleCmPerPx) return `${fmt(px*scaleCmPerPx,1)} cm`;
+  return `${fmt(px,0)} px（未校正）`;
+}
+
+function drawGaitOverlay(){
+  gaitCtx.clearRect(0,0,gaitCanvas.width,gaitCanvas.height);
+  drawLineSet(gaitCtx,scalePoints,"#0f766e","校正");
+  drawLineSet(gaitCtx,stepPoints,"#d76628","歩幅");
+}
+
+function drawLineSet(ctx,pts,color,label){
+  if(!pts.length) return;
+  ctx.save();
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  if(pts.length >= 2){
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x,pts[0].y);
+    ctx.lineTo(pts[1].x,pts[1].y);
+    ctx.stroke();
+  }
+  pts.forEach((p,i) => {
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,8,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "900 11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(i+1),p.x,p.y);
+    ctx.fillStyle = color;
+  });
+  if(pts.length >= 2){
+    ctx.fillStyle = "#111827";
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 4;
+    ctx.font = "900 14px sans-serif";
+    const midx = (pts[0].x + pts[1].x)/2 + 8;
+    const midy = (pts[0].y + pts[1].y)/2 - 8;
+    const text = label === "歩幅" ? stepLengthText() : `${$("#scaleCm").value} cm`;
+    ctx.strokeText(text,midx,midy);
+    ctx.fillText(text,midx,midy);
+  }
+  ctx.restore();
+}
+
+gaitCanvas.addEventListener("pointerdown", event => {
+  if(mode !== "gait" || !gaitVideo.src || !gaitMode) return;
+  const p = canvasPoint(event,gaitCanvas);
+  if(gaitMode === "scale"){
+    if(scalePoints.length >= 2) scalePoints = [];
+    scalePoints.push(p);
+    if(scalePoints.length === 2){
+      const px = distance(scalePoints[0], scalePoints[1]);
+      const cm = Number($("#scaleCm").value) || 0;
+      if(px && cm) scaleCmPerPx = cm / px;
+      gaitMode = null;
+      setStatus("距離校正を登録しました。");
+    }else setStatus("校正の2点目をタップしてください。");
+  }
+  if(gaitMode === "step"){
+    if(stepPoints.length >= 2) stepPoints = [];
+    stepPoints.push(p);
+    if(stepPoints.length === 2){
+      gaitMode = null;
+      setStatus("歩幅を登録しました。");
+      updateGaitResults();
+    }else setStatus("歩幅の2点目をタップしてください。");
+  }
+  drawGaitOverlay();
+});
+
+function exportGaitCsv(){
+  const m = gaitMetrics();
+  const lines = [
+    ["項目","値"],
+    ["作成日時",new Date().toLocaleString("ja-JP")],
+    ["メモ",memoEl.value.trim()],
+    ["ケイデンス",m.cadence == null ? "" : fmt(m.cadence,1)],
+    ["平均ステップ時間",m.stepAvg == null ? "" : fmt(m.stepAvg,2)],
+    ["右→左ステップ",m.stepRtoL == null ? "" : fmt(m.stepRtoL,2)],
+    ["左→右ステップ",m.stepLtoR == null ? "" : fmt(m.stepLtoR,2)],
+    ["右ストライド",m.strideR == null ? "" : fmt(m.strideR,2)],
+    ["左ストライド",m.strideL == null ? "" : fmt(m.strideL,2)],
+    ["右立脚相%",m.stanceR == null ? "" : fmt(m.stanceR.pct,1)],
+    ["左立脚相%",m.stanceL == null ? "" : fmt(m.stanceL.pct,1)],
+    ["歩幅",stepLengthText()],
+    [],
+    ["イベント","時刻秒"],
+    ...gaitEvents.map(e => [eventLabels[e.code],fmt(e.t,3)])
+  ];
+  const csv = lines.map(row => row.map(cell => `"${String(cell ?? "").replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv],{type:"text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `gait_analysis_${Date.now()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url),1000);
+}
+
+function loadRecords(){
+  try{return JSON.parse(localStorage.getItem("simple_rom_records") || "[]");}
+  catch(e){return [];}
+}
+function saveRecords(){
+  localStorage.setItem("simple_rom_records", JSON.stringify(records.slice(0,50)));
+}
+function renderRecords(){
   if(!records.length){
-    savedWrap.innerHTML = '<div class="empty">保存した記録はまだありません。</div>';
+    $("#records").innerHTML = '<div class="row-muted" style="padding:10px 0">まだ記録はありません。</div>';
     return;
   }
-  let html = '<div class="group-title">保存した記録</div>';
-  records.forEach(record => {
-    const data = record.data.map(item => {
-      const delta = item.delta == null ? "" : ` (${item.delta >= 0 ? "+" : ""}${item.delta}${item.unit})`;
-      return `${item.name}: ${item.val}${item.unit}${delta}`;
-    }).join(" / ");
-    html += `
-      <div class="history-item">
-        ${record.image ? `<img class="history-thumb" src="${record.image}" alt="">` : `<div class="history-thumb"></div>`}
-        <div>
-          <div class="history-title">${escapeHtml(record.context)}</div>
-          <div class="history-meta">${escapeHtml(record.t)}${record.memo ? " / " + escapeHtml(record.memo) : ""}</div>
-          <div class="history-data">${escapeHtml(data)}</div>
-          <div class="history-actions">
-            ${record.image ? `<button class="small-btn" data-download="${record.id}" type="button">画像再保存</button>` : ""}
-            <button class="small-btn danger" data-delete="${record.id}" type="button">削除</button>
-          </div>
-        </div>
-      </div>`;
-  });
-  savedWrap.innerHTML = html;
-  savedWrap.querySelectorAll("[data-download]").forEach(button => {
-    button.onclick = () => {
-      const rec = loadRecs().find(item => item.id === button.dataset.download);
-      if(!rec?.image) return;
-      const link = document.createElement("a");
-      link.href = rec.image;
-      link.download = `rom_record_${rec.t.replace(/[^\d]/g,"").slice(0,14)}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    };
-  });
-  savedWrap.querySelectorAll("[data-delete]").forEach(button => {
-    button.onclick = () => {
-      const filtered = loadRecs().filter(item => item.id !== button.dataset.delete);
-      saveRecs(filtered);
-      renderRecs();
+  $("#records").innerHTML = records.map(r => `<div class="rec">
+    <div class="rec-title">${escapeHtml(r.title)} ${r.value}°</div>
+    <div class="rec-meta">${escapeHtml(r.t)} / ${r.calc === "rom" ? "ROM" : "内角"}${r.memo ? " / " + escapeHtml(r.memo) : ""}</div>
+    <div class="rec-actions"><button class="small-btn danger" data-del="${r.id}" type="button">削除</button></div>
+  </div>`).join("");
+  $$("[data-del]").forEach(btn => {
+    btn.onclick = () => {
+      records = records.filter(r => r.id !== btn.dataset.del);
+      saveRecords();
+      renderRecords();
     };
   });
 }
 
-function setChoice(selector,attr,value){
-  $$(selector).forEach(button => {
-    const active = button.dataset[attr] === value;
-    button.classList.toggle("active",active);
-    button.setAttribute("aria-pressed",active ? "true" : "false");
-  });
-}
-
-function refreshFromLastResult(){
-  updateGuide();
-  if(lastResult){
-    renderResults(computeMetrics(lastResult));
-  }else{
-    updateButtons();
-  }
-}
-
-$("#modeSeg").onclick = event => {
-  const button = event.target.closest("[data-mode]");
-  if(!button) return;
-  mode = button.dataset.mode;
-  setChoice("#modeSeg .choice","mode",mode);
-  stopCamera();
-  video.classList.add("hidden");
-  photo.classList.add("hidden");
-  hintEl.classList.remove("hidden");
-  frameGuide.classList.remove("hidden");
-  stage.style.aspectRatio = "4 / 3";
-  if(mode === "photo"){
-    hintEl.textContent = "「写真を選ぶ」から、対象部位が全部入った写真を読み込みます。";
-    clearMeasurement("写真を選ぶと、角度と基準差がここに出ます。");
-    statusEl.textContent = "写真モードです。スマホのカメラで撮った画像も選べます。";
-  }else{
-    hintEl.textContent = "「計測スタート」を押して、対象部位を枠内に入れます。";
-    clearMeasurement("計測スタートを押すと、角度がここに出ます。");
-    statusEl.textContent = secure ? "カメラモードです。開始時にカメラ許可をしてください。" : "この開き方ではカメラが使えません。写真モードを使ってください。";
-  }
+$$(".tab").forEach(btn => btn.onclick = () => setMode(btn.dataset.mode));
+$("#jointSeg").onclick = e => {
+  const b = e.target.closest(".choice");
+  if(!b) return;
+  joint = b.dataset.joint;
+  setChoice("#jointSeg","joint",joint);
+  calcMode = b.dataset.calcDefault;
+  setChoice("#calcSeg","calc",calcMode);
+  drawAngle();
+};
+$("#sideSeg").onclick = e => {
+  const b = e.target.closest(".choice");
+  if(!b) return;
+  side = b.dataset.side;
+  setChoice("#sideSeg","side",side);
+  drawAngle();
+};
+$("#calcSeg").onclick = e => {
+  const b = e.target.closest(".choice");
+  if(!b) return;
+  calcMode = b.dataset.calc;
+  setChoice("#calcSeg","calc",calcMode);
+  drawAngle();
 };
 
-$("#positionSeg").onclick = event => {
-  const button = event.target.closest("[data-position]");
-  if(!button) return;
-  position = button.dataset.position;
-  setChoice("#positionSeg .choice","position",position);
-  refreshFromLastResult();
-};
+$("#imageBtn").onclick = () => $("#imageInput").click();
+$("#imageInput").onchange = e => { if(e.target.files[0]) loadImage(e.target.files[0]); e.target.value = ""; };
+$("#undoPointBtn").onclick = () => { points.pop(); drawAngle(); };
+$("#resetAngleBtn").onclick = () => { points = []; drawAngle(); };
+$("#recordAngleBtn").onclick = angleRecord;
+$("#saveAngleBtn").onclick = saveAngleImage;
 
-$("#catSeg").onclick = event => {
-  const button = event.target.closest("[data-cat]");
-  if(!button) return;
-  category = button.dataset.cat;
-  setChoice("#catSeg .choice","cat",category);
-  refreshFromLastResult();
+$("#videoBtn").onclick = () => $("#videoInput").click();
+$("#videoInput").onchange = e => { if(e.target.files[0]) loadVideo(e.target.files[0]); e.target.value = ""; };
+$("#playBtn").onclick = () => {
+  if(!gaitVideo.src) return;
+  if(gaitVideo.paused){ gaitVideo.play(); $("#playBtn").textContent = "停止"; }
+  else{ gaitVideo.pause(); $("#playBtn").textContent = "再生"; }
 };
+gaitVideo.addEventListener("timeupdate",updateVideoTime);
+gaitVideo.addEventListener("pause",() => $("#playBtn").textContent = "再生");
+gaitVideo.addEventListener("play",() => $("#playBtn").textContent = "停止");
+$("#timeSlider").oninput = e => { if(gaitVideo.src) gaitVideo.currentTime = Number(e.target.value); };
+$$("[data-jump]").forEach(btn => btn.onclick = () => {
+  if(!gaitVideo.src) return;
+  gaitVideo.currentTime = Math.max(0, Math.min(gaitVideo.duration || 0, gaitVideo.currentTime + Number(btn.dataset.jump)));
+});
+$$("[data-event]").forEach(btn => btn.onclick = () => addGaitEvent(btn.dataset.event));
+$("#clearEventsBtn").onclick = () => { gaitEvents = []; updateGaitResults(); setStatus("歩行イベントを消去しました。"); };
+$("#scaleBtn").onclick = () => { gaitMode = "scale"; scalePoints = []; setStatus("距離校正: 既知の長さの両端を2点タップしてください。"); drawGaitOverlay(); };
+$("#stepLenBtn").onclick = () => { gaitMode = "step"; stepPoints = []; setStatus("歩幅: 後ろ足踵 → 前足踵を2点タップしてください。"); drawGaitOverlay(); };
+$("#exportGaitBtn").onclick = exportGaitCsv;
 
-$("#viewSwitch").onclick = event => {
-  const button = event.target.closest("[data-view]");
-  if(!button) return;
-  view = button.dataset.view;
-  setChoice("#viewSwitch .choice","view",view);
-  refreshFromLastResult();
-};
+window.addEventListener("resize",() => {
+  if(angleImage){ resizeCanvasToImage(angleCanvas,angleImage); drawAngle(); }
+  if(gaitVideo.src && gaitVideo.videoWidth){ resizeCanvasToVideo(); drawGaitOverlay(); }
+});
 
-$("#sideSeg").onclick = event => {
-  const button = event.target.closest("[data-side]");
-  if(!button) return;
-  side = button.dataset.side;
-  setChoice("#sideSeg .choice","side",side);
-  refreshFromLastResult();
-};
-
-startBtn.onclick = startCamera;
-flipBtn.onclick = () => {
-  facing = facing === "environment" ? "user" : "environment";
-  if(stream) startCamera();
-};
-uploadBtn.onclick = () => fileInput.click();
-fileInput.onchange = event => {
-  const file = event.target.files?.[0];
-  if(file) analyzePhoto(file);
-  event.target.value = "";
-};
-baselineBtn.onclick = registerBaseline;
-saveImageBtn.onclick = saveCurrentImage;
-window.addEventListener("beforeunload",stopCamera);
-
-showBanner();
-updateGuide();
-updateButtons();
-renderRecs();
-initModel();
+renderRecords();
+updateAngleResult();
+updateGaitResults();
 </script>
 </body>
 </html>
